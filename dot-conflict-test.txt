@@ -1,1 +1,1 @@
-Retry limit: 4
+Maximum retries: 4
