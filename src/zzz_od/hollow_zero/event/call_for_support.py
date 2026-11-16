@@ -202,6 +202,14 @@ class CallForSupport(ZOperation):
     @node_from(from_name='选择位置')
     @operation_node(name='确认')
     def confirm(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            # 从新画面的队伍头像确认入队，不能凭确认按键直接改写队伍缓存。
+            matched = self.ctx.withered_domain._check_agent_list_in_parallel(self.last_screenshot)
+            agents = self.ctx.withered_domain.agent_list
+            if (matched and self.new_agent is not None and agents is not None
+                    and agents[self.should_call_pos - 1] == self.new_agent):
+                return self.round_success()
+            return hollow_event_utils.click_empty(self)
         self.ctx.withered_domain.update_agent_list_after_support(self.new_agent, self.should_call_pos)
         return hollow_event_utils.click_empty(self)
 

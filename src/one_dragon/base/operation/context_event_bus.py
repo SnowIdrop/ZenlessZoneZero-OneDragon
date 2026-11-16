@@ -29,7 +29,8 @@ class ContextEventBus:
         """
         if event_id not in self.callbacks:
             return
-        for callback in self.callbacks[event_id]:
+        # 回调可能在提交期间注销；本次分发使用确定的监听者快照。
+        for callback in tuple(self.callbacks[event_id]):
             future: Future = _od_event_bus_executor.submit(callback, ContextEventItem(event_id, event_obj))
             future.add_done_callback(thread_utils.handle_future_result)
 

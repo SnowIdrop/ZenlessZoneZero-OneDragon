@@ -1,3 +1,5 @@
+from collections import deque
+
 from cv2.typing import MatLike
 from typing import Optional, List
 
@@ -5,6 +7,46 @@ from one_dragon.base.geometry.point import Point
 from one_dragon.utils import cal_utils
 from zzz_od.hollow_zero.hollow_map.hollow_map_utils import is_same_node
 from zzz_od.hollow_zero.hollow_map.hollow_zero_map import HollowZeroMapNode, HollowZeroMap
+
+
+def get_first_adjacent_node(current_map: HollowZeroMap, waypoint: HollowZeroMapNode | None) -> HollowZeroMapNode | None:
+    """将鼠标点击路标转换为逐格最短路径，只经过已通行格，保持原事件选择。"""
+    if not current_map.is_valid_map or waypoint not in current_map.nodes:
+        return None
+    queue: deque[tuple[int, HollowZeroMapNode | None]] = deque([(current_map.current_idx, None)])
+    visited: set[int] = {current_map.current_idx}
+    while queue:
+        current_idx, first_node = queue.popleft()
+        for next_idx in current_map.edges.get(current_idx, []):
+            if next_idx in visited:
+                continue
+            visited.add(next_idx)
+            node = current_map.nodes[next_idx]
+            if not node.entry.can_go:
+                continue
+            first = node if first_node is None else first_node
+            if node is waypoint:
+                return first
+            if node.entry.need_step == 0:
+                queue.append((next_idx, first))
+    return None
+
+
+def get_rail_exit(current_map: HollowZeroMap, node: HollowZeroMapNode) -> HollowZeroMapNode | None:
+    """沿地图已声明的单向轨道找到出口；缺失、分叉或循环时不猜落点。"""
+    visited: set[int] = set()
+    while node.entry.entry_name.startswith('轨道-'):
+        if node not in current_map.nodes:
+            return None
+        index = current_map.nodes.index(node)
+        if index in visited:
+            return None
+        visited.add(index)
+        exits = current_map.edges.get(index, [])
+        if len(exits) != 1:
+            return None
+        node = current_map.nodes[exits[0]]
+    return node
 
 
 def search_map(current_map: HollowZeroMap, avoid_entry_list: set[str], visited_nodes: List[HollowZeroMapNode]) -> None:

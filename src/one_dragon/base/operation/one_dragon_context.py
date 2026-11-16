@@ -463,7 +463,7 @@ class OneDragonContext(ContextEventBus, OneDragonEnvContext):
         if self.controller is None or not self.controller.is_game_window_ready:
             return
         if self.controller.game_win is not None:
-            self.controller.game_win.active()
+            self.controller.active_window()
         _, img = self.controller.screenshot(independent=True)
         debug_utils.save_debug_image(img, copy_screenshot=copy_screenshot)
 

@@ -245,7 +245,7 @@ class CoffeeApp(ZApplication):
     @node_from(from_name='点单')
     @node_from(from_name='不占用点单确认')
     @node_from(from_name='对话选咖啡', status='点单后跳过')  # 片刻闲首次点单后的动画可在此跳过
-    @operation_node(name='点单后跳过')
+    @operation_node(name='点单后跳过', timeout_seconds=30)
     def skip_after_order(self) -> OperationRoundResult:
         result = self.round_by_find_area(self.last_screenshot, '咖啡店', '电量确认')
         if result.is_success:
@@ -255,6 +255,9 @@ class CoffeeApp(ZApplication):
         # 原因是绝区零逆天按钮, 需要先拖鼠标, 让鼠标显形才能点击
         result = self.round_by_find_area(self.last_screenshot, '咖啡店', '点单后跳过')
         if result.is_success:
+            if self.ctx.controller.background_mode:
+                # 手柄模式让动画自然结束，下一帧识别电量确认后继续，不触碰系统鼠标。
+                return self.round_wait('等待咖啡动画结束', wait=1)
             area = self.ctx.screen_loader.get_area('咖啡店', '点单后跳过')
             self.ctx.controller.drag_to(start=area.left_top, end=area.center, duration=0.2)
             self.ctx.controller.click()

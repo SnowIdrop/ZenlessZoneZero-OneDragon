@@ -43,6 +43,10 @@ class CompendiumChooseMissionType(ZOperation):
         if self.mission_type.is_agent_plan:
             return self.round_success(status='代理人方案培养')
 
+        if self.ctx.controller.background_mode:
+            self.ctx.controller.background_ui.select_compendium_mission(self.last_screenshot, self.mission_type)
+            return self.round_success(wait=0.5)
+
         area = self.ctx.screen_loader.get_area('快捷手册', '副本列表')
 
         mission_type_list: list[CompendiumMissionType] = self.ctx.compendium_service.get_same_category_mission_type_list(self.mission_type.mission_type_name)

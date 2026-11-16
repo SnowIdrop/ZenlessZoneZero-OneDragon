@@ -847,6 +847,69 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-重开按键
+    area_type: text
+    pc_rect:
+    - 1300
+    - 1008
+    - 1340
+    - 1050
+    text: X
+    lcs_percent: 1.0
+  - area_name: 手柄-重新开始
+    area_type: text
+    pc_rect:
+    - 1338
+    - 1008
+    - 1440
+    - 1050
+    text: 重新开始
+    lcs_percent: 1.0
+  - area_name: 手柄-重开提示
+    area_type: text
+    pc_rect:
+    - 810
+    - 496
+    - 1110
+    - 550
+    text: 是否重新开始战斗
+    lcs_percent: 1.0
+  - area_name: 手柄-确认按键
+    area_type: text
+    pc_rect:
+    - 918
+    - 690
+    - 955
+    - 730
+    text: A
+    lcs_percent: 1.0
+  - area_name: 手柄-退出按键
+    area_type: text
+    pc_rect:
+    - 1470
+    - 1008
+    - 1510
+    - 1050
+    text: Y
+    lcs_percent: 1.0
+  - area_name: 手柄-退出战斗
+    area_type: text
+    pc_rect:
+    - 1510
+    - 1008
+    - 1600
+    - 1050
+    text: 退出战斗
+    lcs_percent: 1.0
+  - area_name: 手柄-退出提示
+    area_type: text
+    pc_rect:
+    - 810
+    - 496
+    - 1110
+    - 550
+    text: 是否确认退出战斗
+    lcs_percent: 1.0
 - screen_id: battle_result_fail
   screen_name: 战斗-挑战结果-失败
   pc_alt: false
@@ -968,6 +1031,13 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-页签
+    area_type: none
+    pc_rect:
+    - 1160
+    - 15
+    - 1840
+    - 100
 - screen_id: coffee_shop
   screen_name: 咖啡店
   app_id: coffee
@@ -1099,6 +1169,13 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-咖啡预览
+    area_type: none
+    pc_rect:
+    - 1370
+    - 490
+    - 1670
+    - 575
 - screen_id: combat_simulation
   screen_name: 实战模拟室
   pc_alt: false
@@ -1645,6 +1722,22 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-队员槽
+    area_type: none
+    pc_rect:
+    - 140
+    - 890
+    - 1610
+    - 970
+  - area_name: 手柄-预备编队
+    area_type: text
+    pc_rect:
+    - 410
+    - 995
+    - 575
+    - 1058
+    text: 预备编队
+    lcs_percent: 1.0
 - screen_id: common_screen
   screen_name: 画面-通用
   pc_alt: false
@@ -1705,6 +1798,31 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-确认选择
+    area_type: none
+    pc_rect:
+    - 550
+    - 570
+    - 1370
+    - 800
+  - area_name: 手柄-功能导览标题
+    area_type: text
+    pc_rect:
+    - 1380
+    - 120
+    - 1810
+    - 205
+    text: FUNCTIONS
+    lcs_percent: 0.85
+  - area_name: 手柄-导览套件
+    area_type: text
+    pc_rect:
+    - 145
+    - 990
+    - 290
+    - 1045
+    text: 导览套件
+    lcs_percent: 1.0
 - screen_id: compendium
   screen_name: 快捷手册
   pc_alt: false
@@ -1939,6 +2057,20 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-日常任务
+    area_type: none
+    pc_rect:
+    - 350
+    - 350
+    - 1695
+    - 925
+  - area_name: 手柄-前往选择
+    area_type: none
+    pc_rect:
+    - 1310
+    - 300
+    - 1660
+    - 925
 - screen_id: compendium_combat
   screen_name: 快捷手册-作战
   pc_alt: false
@@ -3839,6 +3971,60 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-暂离提示
+    area_type: text
+    pc_rect:
+    - 650
+    - 480
+    - 1260
+    - 570
+    text: 是否确认暂停空洞探索，返回街区
+    lcs_percent: 0.9
+  - area_name: 手柄-暂离取消
+    area_type: text
+    pc_rect:
+    - 780
+    - 590
+    - 890
+    - 655
+    text: 取消
+    lcs_percent: 1
+  - area_name: 手柄-结果用时
+    area_type: text
+    pc_rect:
+    - 850
+    - 455
+    - 1000
+    - 515
+    text: 总计用时
+    lcs_percent: 1
+  - area_name: 手柄-结果完成关卡
+    area_type: text
+    pc_rect:
+    - 885
+    - 522
+    - 1030
+    - 578
+    text: 完成关卡
+    lcs_percent: 1
+  - area_name: 手柄-结果暂离
+    area_type: text
+    pc_rect:
+    - 975
+    - 908
+    - 1040
+    - 960
+    text: 暂离
+    lcs_percent: 1
+  - area_name: 手柄-结果确定
+    area_type: text
+    pc_rect:
+    - 1110
+    - 908
+    - 1180
+    - 960
+    text: 确定
+    lcs_percent: 1
 - screen_id: hollow_zero_entry
   screen_name: 零号空洞-入口
   app_id: withered_domain
@@ -3970,6 +4156,106 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 分支-深层调查
+    area_type: text
+    pc_rect:
+    - 1390
+    - 20
+    - 1550
+    - 85
+    text: 深层调查
+    lcs_percent: 0.8
+  - area_name: 分支-迷失之地
+    area_type: text
+    pc_rect:
+    - 330
+    - 815
+    - 595
+    - 912
+    text: 迷失之地
+    lcs_percent: 0.8
+  - area_name: 分支-枯萎之都
+    area_type: text
+    pc_rect:
+    - 1330
+    - 835
+    - 1620
+    - 940
+    text: 枯萎之都
+    lcs_percent: 0.8
+  - area_name: 手柄-分支按键
+    area_type: none
+    pc_rect:
+    - 380
+    - 905
+    - 1530
+    - 970
+  - area_name: 手柄-枯萎区域
+    area_type: none
+    pc_rect:
+    - 120
+    - 160
+    - 1810
+    - 940
+  - area_name: 手柄-资质考核
+    area_type: text
+    pc_rect:
+    - 200
+    - 665
+    - 340
+    - 725
+    text: 资质考核
+    lcs_percent: 0.9
+  - area_name: 手柄-施工废墟
+    area_type: text
+    pc_rect:
+    - 660
+    - 345
+    - 830
+    - 410
+    text: 施工废墟
+    lcs_percent: 0.9
+  - area_name: 手柄-关卡列表
+    area_type: none
+    pc_rect:
+    - 1100
+    - 160
+    - 1860
+    - 930
+  - area_name: 手柄-关键敌情
+    area_type: text
+    pc_rect:
+    - 1380
+    - 995
+    - 1550
+    - 1055
+    text: 关键敌情
+    lcs_percent: 0.9
+  - area_name: 手柄-探索收集
+    area_type: text
+    pc_rect:
+    - 1400
+    - 995
+    - 1595
+    - 1055
+    text: 探索收集
+    lcs_percent: 1
+  - area_name: 手柄-作战机略
+    area_type: text
+    pc_rect:
+    - 1670
+    - 995
+    - 1850
+    - 1055
+    text: 作战机略
+    lcs_percent: 1
+  - area_name: 手柄-继续探索提示
+    area_type: none
+    pc_rect:
+    - 640
+    - 485
+    - 1290
+    - 560
 - screen_id: hollow_zero_event
   screen_name: 零号空洞-事件
   app_id: withered_domain
@@ -4409,6 +4695,203 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-鸣徽名称
+    area_type: none
+    pc_rect:
+    - 330
+    - 470
+    - 1660
+    - 535
+  - area_name: 手柄-鸣徽卡片
+    area_type: none
+    pc_rect:
+    - 300
+    - 210
+    - 1700
+    - 750
+  - area_name: 手柄-事件继续
+    area_type: text
+    pc_rect:
+    - 1808
+    - 542
+    - 1858
+    - 594
+    text: A
+    lcs_percent: 1.0
+  - area_name: 手柄-研究鸣徽
+    area_type: text
+    pc_rect:
+    - 770
+    - 135
+    - 1160
+    - 200
+    text: 请领取怀斯塔学会的研究型鸣徽
+    lcs_percent: 0.85
+  - area_name: 手柄-事件选项
+    area_type: none
+    pc_rect:
+    - 1250
+    - 300
+    - 1920
+    - 950
+  - area_name: 手柄-消息选择
+    area_type: text
+    pc_rect:
+    - 800
+    - 690
+    - 1120
+    - 840
+    text: 选择
+    lcs_percent: 1
+  - area_name: 手柄-消息确认
+    area_type: text
+    pc_rect:
+    - 800
+    - 590
+    - 1120
+    - 770
+    text: 确认
+    lcs_percent: 1
+  - area_name: 手柄-侵蚀卡片
+    area_type: none
+    pc_rect:
+    - 250
+    - 300
+    - 1680
+    - 650
+  - area_name: 手柄-战利品确定
+    area_type: text
+    pc_rect:
+    - 840
+    - 810
+    - 1085
+    - 885
+    text: 确定
+    lcs_percent: 1
+  - area_name: 手柄-战利品
+    area_type: text
+    pc_rect:
+    - 870
+    - 140
+    - 1045
+    - 195
+    text: 获得战利品
+    lcs_percent: 1
+  - area_name: 手柄-通关标题
+    area_type: text
+    pc_rect:
+    - 270
+    - 40
+    - 500
+    - 90
+    text: MISSION COMPLETE
+    lcs_percent: 0.8
+  - area_name: 手柄-通关完成
+    area_type: text
+    pc_rect:
+    - 1800
+    - 1000
+    - 1900
+    - 1055
+    text: 完成
+    lcs_percent: 1
+  - area_name: 手柄-探索总结
+    area_type: text
+    pc_rect:
+    - 180
+    - 25
+    - 330
+    - 85
+    text: 探索总结
+    lcs_percent: 1
+  - area_name: 手柄-总结委托
+    area_type: text
+    pc_rect:
+    - 450
+    - 170
+    - 520
+    - 215
+    text: 委托
+    lcs_percent: 1
+  - area_name: 手柄-鸣徽背面名称
+    area_type: none
+    pc_rect:
+    - 330
+    - 315
+    - 1660
+    - 365
+  - area_name: 手柄-催化选择
+    area_type: text
+    pc_rect:
+    - 800
+    - 140
+    - 1120
+    - 200
+    text: 请选择要催化的鸣徽
+    lcs_percent: 1
+  - area_name: 手柄-菜单暂离
+    area_type: text
+    pc_rect:
+    - 1405
+    - 1000
+    - 1485
+    - 1060
+    text: 暂离
+    lcs_percent: 1
+  - area_name: 手柄-菜单放弃
+    area_type: text
+    pc_rect:
+    - 1530
+    - 1000
+    - 1610
+    - 1060
+    text: 放弃
+    lcs_percent: 1
+  - area_name: 手柄-放弃提示
+    area_type: text
+    pc_rect:
+    - 700
+    - 490
+    - 1220
+    - 560
+    text: 是否确认放弃空洞探索，返回街区
+    lcs_percent: 0.9
+  - area_name: 手柄-放弃结算
+    area_type: text
+    pc_rect:
+    - 270
+    - 42
+    - 465
+    - 90
+    text: MISSION FAILED
+    lcs_percent: 0.9
+  - area_name: 手柄-插件获得
+    area_type: text
+    pc_rect:
+    - 810
+    - 390
+    - 1120
+    - 445
+    text: 获得邦布插件
+    lcs_percent: 1
+  - area_name: 手柄-插件确定
+    area_type: text
+    pc_rect:
+    - 900
+    - 710
+    - 1040
+    - 760
+    text: 确定
+    lcs_percent: 1
+  - area_name: 手柄-丢弃冗余
+    area_type: text
+    pc_rect:
+    - 810
+    - 135
+    - 1110
+    - 200
+    text: 丢弃冗余
+    lcs_percent: 1
 - screen_id: hollow_zero_merchant
   screen_name: 零号空洞-商店
   app_id: withered_domain
@@ -4568,6 +5051,20 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-商品列表
+    area_type: none
+    pc_rect:
+    - 1150
+    - 220
+    - 1920
+    - 820
+  - area_name: 手柄-外层选择
+    area_type: none
+    pc_rect:
+    - 1250
+    - 420
+    - 1920
+    - 670
 - screen_id: hou_hou_bakery
   screen_name: 吼吼饼铺
   app_id: hou_hou_bakery
@@ -4751,6 +5248,42 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-日程
+    area_type: text
+    pc_rect:
+    - 1600
+    - 25
+    - 1710
+    - 85
+    text: 日程
+    lcs_percent: 1
+  - area_name: 手柄-任务聚焦
+    area_type: text
+    pc_rect:
+    - 120
+    - 140
+    - 210
+    - 180
+    text: 任务聚焦
+    lcs_percent: 0.9
+  - area_name: 手柄-停止追踪
+    area_type: text
+    pc_rect:
+    - 410
+    - 850
+    - 535
+    - 920
+    text: 停止追踪
+    lcs_percent: 1
+  - area_name: 手柄-追踪
+    area_type: text
+    pc_rect:
+    - 400
+    - 850
+    - 535
+    - 920
+    text: 追踪
+    lcs_percent: 1
 - screen_id: item_processing
   screen_name: 道具处理
   pc_alt: false
@@ -5075,6 +5608,13 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-页签
+    area_type: none
+    pc_rect:
+    - 245
+    - 15
+    - 1025
+    - 90
 - screen_id: lostvoid_investigativeStrategy
   screen_name: 迷失之地-调查战略选择
   app_id: lost_void
@@ -5395,6 +5935,50 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-确认按键
+    area_type: text
+    pc_rect:
+    - 1060
+    - 912
+    - 1107
+    - 957
+    text: A
+    lcs_percent: 1
+  - area_name: 手柄-结算按钮
+    area_type: text
+    pc_rect:
+    - 1108
+    - 912
+    - 1180
+    - 957
+    text: 确定
+    lcs_percent: 1
+  - area_name: 手柄-完成按键
+    area_type: text
+    pc_rect:
+    - 1550
+    - 1006
+    - 1599
+    - 1051
+    text: B
+    lcs_percent: 1.0
+  - area_name: 区域-结算评级
+    area_type: none
+    pc_rect:
+    - 650
+    - 300
+    - 1250
+    - 870
+  - area_name: 标识-未通关
+    area_type: template
+    pc_rect:
+    - 730
+    - 330
+    - 1190
+    - 810
+    template_sub_dir: lost_void
+    template_id: result_failed
+    template_match_threshold: 0.9
 - screen_id: lost_void_choose_common
   screen_name: 迷失之地-通用选择
   app_id: lost_void
@@ -5547,6 +6131,72 @@
     template_match_threshold: null
     color_range: null
     goto_list: []
+  - area_name: 手柄-卡牌
+    area_type: none
+    pc_rect:
+    - 80
+    - 210
+    - 1840
+    - 780
+  - area_name: 手柄-确认按键
+    area_type: none
+    pc_rect:
+    - 850
+    - 815
+    - 905
+    - 880
+  - area_name: 手柄-藏品名称
+    area_type: none
+    pc_rect:
+    - 80
+    - 505
+    - 1911
+    - 552
+  - area_name: 手柄-事件名称
+    area_type: none
+    pc_rect:
+    - 80
+    - 550
+    - 1911
+    - 610
+  - area_name: 手柄-武备确认按键
+    area_type: none
+    pc_rect:
+    - 825
+    - 900
+    - 875
+    - 960
+  - area_name: 手柄-武备卡牌
+    area_type: none
+    pc_rect:
+    - 80
+    - 340
+    - 1840
+    - 845
+  - area_name: 手柄-新藏品标识
+    area_type: template
+    pc_rect:
+    - 80
+    - 235
+    - 1840
+    - 285
+    template_sub_dir: lost_void
+    template_id: new_resonium
+    template_match_threshold: 0.85
+  - area_name: 手柄-武备NEW标识
+    area_type: none
+    pc_rect:
+    - 80
+    - 350
+    - 1840
+    - 400
+  - area_name: 手柄-确认操作区
+    area_type: none
+    pc_rect:
+    - 700
+    - 790
+    - 1220
+    - 970
 - screen_id: lost_void_entry
   screen_name: 迷失之地-入口
   app_id: lost_void
@@ -5664,6 +6314,108 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 更新-标题
+    area_type: text
+    pc_rect:
+    - 510
+    - 255
+    - 870
+    - 310
+    text: 内容更新
+    lcs_percent: 0.8
+  - area_name: 手柄-常规选择
+    area_type: none
+    pc_rect:
+    - 120
+    - 285
+    - 1800
+    - 760
+  - area_name: 手柄-调查战略标题
+    area_type: text
+    pc_rect:
+    - 800
+    - 50
+    - 1120
+    - 110
+    text: 请选择调查战略
+    lcs_percent: 0.8
+  - area_name: 手柄-调查战略列表
+    area_type: none
+    pc_rect:
+    - 0
+    - 220
+    - 1920
+    - 790
+  - area_name: 手柄-调查战略确定
+    area_type: text
+    pc_rect:
+    - 820
+    - 955
+    - 1090
+    - 1035
+    text: 确定
+    lcs_percent: 0.8
+  - area_name: 手柄-周期增益
+    area_type: none
+    pc_rect:
+    - 985
+    - 380
+    - 1815
+    - 815
+  - area_name: 手柄-引导下一步
+    area_type: text
+    pc_rect:
+    - 1685
+    - 98
+    - 1790
+    - 150
+    text: 下一步
+    lcs_percent: 0.8
+  - area_name: 手柄-悬赏委托
+    area_type: text
+    pc_rect:
+    - 1090
+    - 20
+    - 1250
+    - 80
+    text: 悬赏委托
+    lcs_percent: 1
+  - area_name: 悬赏-首次解锁提示
+    area_type: text
+    pc_rect:
+    - 680
+    - 485
+    - 1240
+    - 555
+    text: 进行一次任意难度战线肃清挑战后解锁
+    lcs_percent: 0.85
+  - area_name: 手柄-周期重置提醒
+    area_type: text
+    pc_rect:
+    - 690
+    - 495
+    - 1220
+    - 550
+    text: 零号空洞即将重置，请留意重置时间
+    lcs_percent: 1.0
+  - area_name: 手柄-周期提醒确认
+    area_type: text
+    pc_rect:
+    - 805
+    - 580
+    - 1115
+    - 675
+    text: 确认
+    lcs_percent: 1.0
+  - area_name: 手柄-周期提醒按键
+    area_type: text
+    pc_rect:
+    - 918
+    - 690
+    - 955
+    - 730
+    text: A
+    lcs_percent: 1.0
 - screen_id: lost_void_entry_matrix_action
   screen_name: 迷失之地-矩阵行动
   app_id: lost_void
@@ -5837,7 +6589,7 @@
     color_range: null
     goto_list: []
   - area_name: 按钮-街区
-    id_mark: true
+    id_mark: false
     pc_rect:
     - 234
     - 26
@@ -6023,7 +6775,7 @@
   - area_name: 作战潜能
     id_mark: true
     pc_rect:
-    - 909
+    - 765
     - 979
     - 1037
     - 1064
@@ -6256,6 +7008,93 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-教学下一步
+    area_type: text
+    pc_rect:
+    - 1690
+    - 100
+    - 1770
+    - 150
+    text: 下一步
+    lcs_percent: 1
+  - area_name: 手柄-教学确认
+    area_type: text
+    pc_rect:
+    - 1645
+    - 100
+    - 1690
+    - 150
+    text: A
+    lcs_percent: 1
+  - area_name: 手柄-解锁
+    area_type: text
+    pc_rect:
+    - 1770
+    - 760
+    - 1880
+    - 812
+    text: 解锁
+    lcs_percent: 1
+  - area_name: 手柄-解锁按键
+    area_type: text
+    pc_rect:
+    - 1680
+    - 760
+    - 1730
+    - 812
+    text: Y
+    lcs_percent: 1
+  - area_name: 手柄-教学说明
+    area_type: none
+    pc_rect:
+    - 1320
+    - 35
+    - 1770
+    - 95
+  - area_name: 手柄-携带提示
+    area_type: none
+    pc_rect:
+    - 650
+    - 445
+    - 1270
+    - 495
+  - area_name: 手柄-携带确认区
+    area_type: none
+    pc_rect:
+    - 650
+    - 630
+    - 1270
+    - 730
+  - area_name: 手柄-已携带名称
+    area_type: none
+    pc_rect:
+    - 650
+    - 340
+    - 1270
+    - 415
+  - area_name: 手柄-携带按键
+    area_type: none
+    pc_rect:
+    - 1675
+    - 845
+    - 1730
+    - 900
+  - area_name: 手柄-教学标识
+    area_type: none
+    pc_rect:
+    - 1770
+    - 28
+    - 1840
+    - 101
+  - area_name: 手柄-教学详情按键
+    area_type: text
+    pc_rect:
+    - 1645
+    - 100
+    - 1690
+    - 150
+    text: LS
+    lcs_percent: 1
 - screen_id: lost_void_lottery
   screen_name: 迷失之地-抽奖机
   app_id: lost_void
@@ -6506,6 +7345,22 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-对话继续
+    area_type: text
+    pc_rect:
+    - 1440
+    - 970
+    - 1525
+    - 1035
+    text: A
+    lcs_percent: 1
+  - area_name: 手柄-对话框
+    area_type: none
+    pc_rect:
+    - 390
+    - 790
+    - 1530
+    - 1035
 - screen_id: lost_void_route_change
   screen_name: 迷失之地-路径迭换
   app_id: lost_void
@@ -6599,6 +7454,13 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-传送点选择
+    area_type: none
+    pc_rect:
+    - 0
+    - 925
+    - 1920
+    - 1080
 - screen_id: matrix_action_team_select
   screen_name: 迷失之地-矩阵行动-编队选择
   app_id: lost_void
@@ -6949,6 +7811,13 @@
     template_match_threshold: 0.9
     color_range: null
     goto_list: []
+  - area_name: 手柄-底部选择
+    area_type: none
+    pc_rect:
+    - 200
+    - 920
+    - 1730
+    - 1080
 - screen_id: menu_more
   screen_name: 菜单-更多功能
   pc_alt: false
@@ -7908,6 +8777,72 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-周期挑战入口
+    area_type: text
+    pc_rect:
+    - 1300
+    - 330
+    - 1645
+    - 410
+    text: 周期挑战
+    lcs_percent: 1
+  - area_name: 手柄-周期挑战标题
+    area_type: text
+    pc_rect:
+    - 480
+    - 240
+    - 700
+    - 295
+    text: 周期挑战
+    lcs_percent: 1
+  - area_name: 手柄-全部领取
+    area_type: text
+    pc_rect:
+    - 1270
+    - 340
+    - 1410
+    - 382
+    text: 全部领取
+    lcs_percent: 1
+  - area_name: 手柄-周期挑战关闭
+    area_type: none
+    pc_rect:
+    - 1370
+    - 210
+    - 1480
+    - 295
+  - area_name: 手柄-暂无奖励
+    area_type: text
+    pc_rect:
+    - 1270
+    - 340
+    - 1410
+    - 382
+    text: 全部领取
+    lcs_percent: 1
+    color_range:
+    - - 100
+      - 100
+      - 100
+    - - 180
+      - 180
+      - 180
+  - area_name: 手柄-可领取奖励
+    area_type: text
+    pc_rect:
+    - 1270
+    - 340
+    - 1410
+    - 382
+    text: 全部领取
+    lcs_percent: 1
+    color_range:
+    - - 220
+      - 220
+      - 220
+    - - 255
+      - 255
+      - 255
 - screen_id: random_play
   screen_name: 影像店营业
   app_id: random_play
@@ -8277,6 +9212,75 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-经营页签
+    area_type: none
+    pc_rect:
+    - 1250
+    - 15
+    - 1850
+    - 100
+  - area_name: 手柄-经营卡片
+    area_type: none
+    pc_rect:
+    - 845
+    - 555
+    - 1830
+    - 855
+  - area_name: 手柄-宣传员列表
+    area_type: none
+    pc_rect:
+    - 510
+    - 125
+    - 1800
+    - 975
+  - area_name: 手柄-开始营业
+    area_type: text
+    pc_rect:
+    - 1590
+    - 882
+    - 1810
+    - 936
+    text: 开始营业
+    lcs_percent: 1.0
+  - area_name: 手柄-正在营业
+    area_type: text
+    pc_rect:
+    - 1590
+    - 882
+    - 1810
+    - 936
+    text: 正在营业
+    lcs_percent: 1.0
+  - area_name: 手柄-推荐上架
+    area_type: text
+    pc_rect:
+    - 1500
+    - 1004
+    - 1605
+    - 1054
+    text: 推荐上架
+    lcs_percent: 0.5
+  - area_name: 手柄-录像带主题-1
+    area_type: none
+    pc_rect:
+    - 870
+    - 130
+    - 965
+    - 200
+  - area_name: 手柄-录像带主题-2
+    area_type: none
+    pc_rect:
+    - 982
+    - 130
+    - 1087
+    - 200
+  - area_name: 手柄-录像带主题-3
+    area_type: none
+    pc_rect:
+    - 1093
+    - 130
+    - 1190
+    - 200
 - screen_id: restore_charge
   screen_name: 恢复电量
   pc_alt: false
@@ -8552,6 +9556,70 @@
     template_match_threshold: 0.7
     color_range: null
     goto_list: []
+  - area_name: 手柄-任务网格
+    area_type: none
+    pc_rect:
+    - 115
+    - 235
+    - 1070
+    - 930
+  - area_name: 标题-积分特赏
+    area_type: text
+    id_mark: true
+    pc_rect:
+    - 1570
+    - 170
+    - 1740
+    - 215
+    text: 积分特赏
+    lcs_percent: 0.5
+  - area_name: 标题-连线奖励
+    area_type: text
+    id_mark: true
+    pc_rect:
+    - 165
+    - 155
+    - 440
+    - 210
+    text: 三格连线额外奖励
+    lcs_percent: 0.5
+  - area_name: 按钮-返回
+    area_type: template
+    pc_rect:
+    - 82
+    - 13
+    - 150
+    - 90
+    template_sub_dir: menu
+    template_id: back
+    template_match_threshold: 0.7
+    goto_list:
+    - 快捷手册-日常
+  - area_name: 引导-下一步
+    area_type: text
+    pc_rect:
+    - 1630
+    - 96
+    - 1770
+    - 150
+    text: 下一步
+    lcs_percent: 0.5
+  - area_name: 手柄-可领取特赏
+    area_type: text
+    pc_rect:
+    - 1108
+    - 1007
+    - 1239
+    - 1052
+    text: 领取积分特赏
+    lcs_percent: 0.5
+    color_range:
+    - - 170
+      - 170
+      - 170
+    - - 255
+      - 255
+      - 255
 - screen_id: shiyu_defense
   screen_name: 式舆防卫战
   app_id: shiyu_defense

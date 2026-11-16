@@ -100,6 +100,9 @@ class HallowZeroDataService:
 
     def match_resonium_by_ocr(self, cate_ocr: str, name_ocr: str) -> Optional[Resonium]:
         log.info('当前识别 %s %s', cate_ocr, name_ocr)
+        # 当前游戏将邦布卡标为“助战”，仍使用已有数据分类和用户的邦布优先级。
+        if cate_ocr == gt('助战', 'game'):
+            cate_ocr = gt('邦布', 'game')
         category_list = [gt(i, 'game') for i in self.resonium_cate_list]
         results = difflib.get_close_matches(cate_ocr, category_list, n=2, cutoff=0.5)
 

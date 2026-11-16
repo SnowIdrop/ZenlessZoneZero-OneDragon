@@ -106,6 +106,9 @@ class HollowQuickRunner(HollowRunner):
             screen = self.screenshot()
             if not self.round_by_find_area(screen, UseBangbooPlugin.SCREEN_NAME, '邦布插件-标题').is_success:
                 break
-            self.round_by_find_and_click_area(screen, '画面-通用', '关闭', success_wait=0.5)
+            if self.ctx.controller.background_mode:
+                self.ctx.controller.gamepad_ui_press('back')
+            else:
+                self.round_by_find_and_click_area(screen, '画面-通用', '关闭', success_wait=0.5)
         self.ctx.withered_domain.map_service.clear_map_result()
         self.ctx.withered_domain.last_target_node = None

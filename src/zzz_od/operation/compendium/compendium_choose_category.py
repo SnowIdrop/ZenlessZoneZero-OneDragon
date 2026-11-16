@@ -30,6 +30,9 @@ class CompendiumChooseCategory(ZOperation):
 
     @operation_node(name='选择分类', is_start_node=True)
     def choose_tab(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            self.ctx.controller.background_ui.select_compendium_category(self.last_screenshot, self.category_name)
+            return self.round_success()
         area = self.ctx.screen_loader.get_area('快捷手册', '分类列表')
 
         target_point: Point | None = None

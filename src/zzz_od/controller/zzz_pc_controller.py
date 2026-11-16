@@ -1,13 +1,23 @@
+from __future__ import annotations
+
 import ctypes
 import time
+from typing import TYPE_CHECKING
 
 from cv2.typing import MatLike
 
+from one_dragon.base.controller.background_input_error import BackgroundInputError
 from one_dragon.base.controller.pc_controller_base import PcControllerBase
+from one_dragon.base.geometry.point import Point
 from one_dragon.utils import cv2_utils
+from one_dragon.utils.log_utils import log
 from zzz_od.config.game_config import GameConfig
 from zzz_od.const import game_const
 from zzz_od.screen_area.screen_normal_world import ScreenNormalWorldEnum
+
+if TYPE_CHECKING:
+    from one_dragon.base.controller.drag_timing import DragTiming
+    from zzz_od.controller.gamepad_ui_navigation import GamepadUiNavigation
 
 
 class ZPcController(PcControllerBase):
@@ -29,6 +39,7 @@ class ZPcController(PcControllerBase):
         self.gamepad_action_keys = self.game_config.get_gamepad_action_keys()
 
         self.is_moving: bool = False  # 是否正在移动
+        self.background_ui: GamepadUiNavigation | None = None
 
     def sync_game_config(self, game_config: GameConfig) -> None:
         """切换实例后同步控制器持有的账号级配置"""
@@ -42,10 +53,57 @@ class ZPcController(PcControllerBase):
     def init_before_context_run(self) -> bool:
         """运行前根据配置启用后台/前台模式"""
         if self.game_config.background_mode:
-            self.enable_background_mode(self.game_config.background_gamepad_type)
+            if self.screenshot_method != 'print_window':
+                log.error('后台模式需要将截图方式设置为 PrintWindow')
+                return False
+            try:
+                self.enable_background_mode(self.game_config.background_gamepad_type)
+            except BackgroundInputError:
+                log.error('后台模式初始化失败', exc_info=True)
+                return False
         else:
             self.enable_foreground_mode()
         return PcControllerBase.init_before_context_run(self)
+
+    def _background_click(self, pos: Point | None, press_time: float = 0) -> bool:
+        """通过游戏界面焦点选择坐标目标。"""
+        if self.background_ui is None or pos is None:
+            raise BackgroundInputError('后台点击缺少界面导航或目标坐标')
+        return self.background_ui.click(pos, press_time)
+
+    def reset_input(self) -> None:
+        """结束运行后同步清除移动状态。"""
+        super().reset_input()
+        self.is_moving = False
+
+    def gamepad_ui_press(self, action: str) -> None:
+        """发送游戏界面固定手柄按键，不使用系统键盘或光标。"""
+        keys = {
+            'confirm': ('xbox_a', 'ds4_cross'),
+            'back': ('xbox_b', 'ds4_circle'),
+            'up': ('xbox_dpad_up', 'ds4_dpad_up'),
+            'down': ('xbox_dpad_down', 'ds4_dpad_down'),
+            'left': ('xbox_dpad_left', 'ds4_dpad_left'),
+            'right': ('xbox_dpad_right', 'ds4_dpad_right'),
+            'secondary': ('xbox_x', 'ds4_square'),
+            'tertiary': ('xbox_y', 'ds4_triangle'),
+            'previous_tab': ('xbox_lb', 'ds4_l1'),
+            'next_tab': ('xbox_rb', 'ds4_r1'),
+            'start': ('xbox_start', 'ds4_options'),
+            'details': ('xbox_l_thumb', 'ds4_l_thumb'),
+        }
+        if not self.background_mode:
+            raise BackgroundInputError('手柄界面导航需要启用后台模式')
+        self.btn_press(keys[action][self.game_config.background_gamepad_type == 'ds4'], 0.1)
+
+    def _background_drag(
+        self, start: Point, end: Point, duration: float = 0.5,
+        *, timing: DragTiming | None = None,
+    ) -> None:
+        """由游戏界面将翻页或列表拖拽转换为手柄操作。"""
+        if self.background_ui is None:
+            raise BackgroundInputError('后台拖拽缺少界面导航')
+        self.background_ui.drag(start, end)
 
     def get_mouse_flash_duration(self) -> float:
         """从当前实例配置获取闪切键鼠模式时的单步等待时长"""
@@ -220,7 +278,6 @@ class ZPcController(PcControllerBase):
         if self.background_mode:
             self._gamepad_turn(dx, dy)
         else:
-            self._ensure_mouse_mode()
             ctypes.windll.user32.mouse_event(0x0001, int(dx), int(dy))
 
     def _gamepad_turn(self, dx: float, dy: float) -> None:
@@ -248,11 +305,9 @@ class ZPcController(PcControllerBase):
 
         duration = max_d / gamepad_turn_speed
 
-        pad = self.btn_controller.pad
+        gamepad = self.btn_controller
         try:
-            pad.right_joystick_float(stick_x, stick_y)
-            pad.update()
+            gamepad.set_right_stick(stick_x, stick_y)
             time.sleep(duration)
         finally:
-            pad.right_joystick_float(0, 0)
-            pad.update()
+            gamepad.set_right_stick(0, 0)

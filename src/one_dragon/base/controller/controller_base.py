@@ -30,6 +30,9 @@ class ControllerBase:
         self.screenshot_alive_seconds: float = screenshot_alive_seconds  # 截图在内存的存活时间
         self.max_screenshot_cnt: int = max_screenshot_cnt  # 内存中最多保持的截图数量
 
+    def reset_input(self) -> None:
+        """运行结束时释放并停止输入，由具体控制器实现。"""
+
     def init_before_context_run(self) -> bool:
         """
         运行前初始化

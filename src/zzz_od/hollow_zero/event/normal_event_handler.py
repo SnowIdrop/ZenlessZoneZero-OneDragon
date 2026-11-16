@@ -40,13 +40,20 @@ class NormalEventHandler(ZOperation):
         # 零号业绩速刷模式 不拿事件收益 有离开的选项就只选离开 否则也不选会扣血的选项
         skip_hp_loss: bool = self.ctx.withered_domain.force_only_boss
         options: list[HallowZeroNormalEventOption] = event.options
+        self._option_names: list[str] | None = ([opt.ocr_word for opt in options]
+                                              if skip_hp_loss and self.ctx.controller.background_mode else None)
         if skip_hp_loss:
             leave_options = [
                 opt for opt in options
                 if any(word in opt.option_name for word in _LEAVE_WORDS)
+                and (not self.ctx.controller.background_mode or not is_hp_loss_option(opt))
             ]
             if len(leave_options) > 0:
-                options = leave_options
+                if self.ctx.controller.background_mode:
+                    # 同一事件后续页可能没有离开项；优先离开，否则保留已配置且不扣血的选项。
+                    options = leave_options + [opt for opt in options if opt not in leave_options and not is_hp_loss_option(opt)]
+                else:
+                    options = leave_options
             else:
                 options = [opt for opt in options if not is_hp_loss_option(opt)]
 
@@ -69,6 +76,7 @@ class NormalEventHandler(ZOperation):
         return hollow_event_utils.check_event_text_and_run(
             self, self.last_screenshot, self._handlers,
             force_bottom_fallback=self.ctx.withered_domain.force_only_boss,
+            option_names=self._option_names,
         )
 
 

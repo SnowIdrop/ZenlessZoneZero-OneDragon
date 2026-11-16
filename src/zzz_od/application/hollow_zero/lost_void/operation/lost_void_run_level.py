@@ -5,6 +5,7 @@ import cv2
 from cv2.typing import MatLike
 
 from one_dragon.base.geometry.point import Point
+from one_dragon.base.geometry.rectangle import Rect
 from one_dragon.base.operation.operation import Operation
 from one_dragon.base.operation.operation_edge import node_from
 from one_dragon.base.operation.operation_node import operation_node
@@ -131,6 +132,9 @@ class LostVoidRunLevel(ZOperation):
         self.talk_opt_idx = 0  # 交互选择的选项
         self.reward_eval_found: bool = False  # 挑战结果中可以识别到业绩点
         self.reward_dn_found: bool = False  # 挑战结果中可以识别到丁尼
+        self.gamepad_result_confirm_sent: bool = False
+        self.gamepad_reset_notice_sent: bool = False
+        self.gamepad_final_passed: bool | None = None
         self.click_challenge_confirm: bool = False  # 点击了挑战确认
         self.boss_pre_battle: bool = self.region_type == LostVoidRegionType.BOSS  # 终结之役正式开战前的交互阶段
 
@@ -150,6 +154,10 @@ class LostVoidRunLevel(ZOperation):
     @node_from(from_name='处理寻路失败或阵亡', status='准备重试')  # 寻路失败后重试
     @operation_node(name='等待加载', node_max_retry_times=60, is_start_node=True)
     def wait_loading(self) -> OperationRoundResult:
+        if (self.ctx.controller.background_mode
+                and self.ctx.controller.background_ui.is_lost_void_selection(self.last_screenshot)):
+            self.interact_target = LostVoidInteractTarget(name='未知', icon='感叹号', is_exclamation=True)
+            return self.round_success('识别正在交互')
         if self.ctx.lost_void.in_normal_world(self.last_screenshot):
             self.room_inited_times = 0
             return self.round_success('大世界')
@@ -159,6 +167,7 @@ class LostVoidRunLevel(ZOperation):
         # 因此在加载这里判断是否有奖励需要选择
         possible_screen_name_list = [
             '迷失之地-武备选择', '迷失之地-通用选择',
+            '迷失之地-挑战结果',
         ]
         screen_name = self.check_and_update_current_screen(self.last_screenshot, screen_name_list=possible_screen_name_list)
         if screen_name is not None:
@@ -667,6 +676,9 @@ class LostVoidRunLevel(ZOperation):
         )
         interact_op: ZOperation | None = None
         interact_type: str | None = None
+        if (self.ctx.controller.background_mode
+                and self.ctx.controller.background_ui.is_lost_void_selection(self.last_screenshot)):
+            screen_name = '迷失之地-通用选择'
         if screen_name == '迷失之地-武备选择':
             interact_op = LostVoidChooseGear(
                 self.ctx,
@@ -810,6 +822,10 @@ class LostVoidRunLevel(ZOperation):
         判断是否有对话选项
         @return:
         """
+        # 底部 A 表示继续台词；此时右侧场景上的箱子文字不是对话选项。
+        if (self.ctx.controller.background_mode
+                and self.round_by_find_area(screen, '迷失之地-大世界', '手柄-对话继续').is_success):
+            return None
         area = self.ctx.screen_loader.get_area('迷失之地-大世界', '区域-右侧对话选项')
         part = cv2_utils.crop_image_only(screen, area.rect)
         mask = cv2.inRange(part, (200, 200, 200), (255, 255, 255))
@@ -1173,6 +1189,11 @@ class LostVoidRunLevel(ZOperation):
 
                 return self.round_wait(wait_round_time=self.ctx.battle_assistant_config.screenshot_interval)
         else:  # 当前不在战斗画面
+            if (self.ctx.controller.background_mode
+                    and self.ctx.controller.background_ui.is_lost_void_selection(self.last_screenshot)):
+                self.ctx.auto_battle_context.stop_auto_battle()
+                self.interact_target = LostVoidInteractTarget(name='战斗后', icon='战斗后', after_battle=True)
+                return self.round_success('识别正在交互')
             if (self.last_screenshot_time - self.last_check_finish_time >= 1  # 1秒识别一次
                     or (self.not_in_battle_times > 0 and self.last_screenshot_time - self.last_check_finish_time >= 0.1)  # 之前也识别到脱离战斗 0.1秒识别一次
             ):
@@ -1217,8 +1238,21 @@ class LostVoidRunLevel(ZOperation):
         return self.round_wait(wait_round_time=self.ctx.battle_assistant_config.screenshot_interval)
 
     @node_from(from_name='交互后处理', status='挑战结果-确定')
-    @operation_node(name='挑战结果处理确定')
+    @operation_node(name='挑战结果处理确定', node_max_retry_times=60)
     def handle_challenge_result_confirm(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if self.gamepad_result_confirm_sent:
+                if (self.ctx.lost_void.in_normal_world(self.last_screenshot)
+                        or self.ctx.controller.background_ui.is_lost_void_selection(self.last_screenshot)):
+                    return self.round_success(LostVoidRunLevel.STATUS_NEXT_LEVEL,
+                                              data=LostVoidRegionType.FRIENDLY_TALK.value.value)
+                return self.round_retry('等待挑战结算后换层', wait=.5)
+            if all(self.round_by_find_area(self.last_screenshot, '迷失之地-挑战结果', name).is_success
+                   for name in ('标题-挑战结果', '手柄-确认按键', '手柄-结算按钮')):
+                self.ctx.controller.gamepad_ui_press('confirm')
+                self.gamepad_result_confirm_sent = True
+                return self.round_retry('已确认挑战结果', wait=.5)
+            return self.round_retry('等待手柄结算确认提示', wait=.5)
         result = self.round_by_find_and_click_area(screen_name='迷失之地-挑战结果', area_name='按钮-确定',
                                                    until_not_find_all=[('迷失之地-挑战结果', '按钮-确定')],
                                                    success_wait=1, retry_wait=1)
@@ -1228,7 +1262,7 @@ class LostVoidRunLevel(ZOperation):
             return result
 
     @node_from(from_name='交互后处理', status='挑战结果-完成')
-    @operation_node(name='挑战结果处理完成')
+    @operation_node(name='挑战结果处理完成', node_max_retry_times=60)
     def handle_challenge_result_finish(self) -> OperationRoundResult:
         # 由于有动画效果 这里需要识别很多轮 只要有一轮识别到就算有
         result = self.round_by_find_area(self.last_screenshot, '迷失之地-挑战结果', '奖励-零号业绩')
@@ -1238,9 +1272,24 @@ class LostVoidRunLevel(ZOperation):
         if result.is_success:
             self.reward_dn_found = True
 
-        result = self.round_by_find_and_click_area(screen=self.last_screenshot, screen_name='迷失之地-挑战结果', area_name='按钮-完成',
-                                                   until_not_find_all=[('迷失之地-挑战结果', '按钮-完成')],
-                                                   success_wait=1, retry_wait=1)
+        if self.ctx.controller.background_mode:
+            if self.gamepad_final_passed is None:
+                if self.round_by_find_area(self.last_screenshot, '迷失之地-挑战结果', '标识-未通关').is_success:
+                    self.gamepad_final_passed = False
+                else:
+                    area = self.ctx.screen_loader.get_area('迷失之地-挑战结果', '区域-结算评级')
+                    labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=area.rect)
+                    if [label.data.strip().upper() for label in labels] == ['S']:
+                        self.gamepad_final_passed = True
+                    else:
+                        return self.round_retry('未识别到已验证的通关评级，不更新完成记录', wait=.5)
+            result = self._finish_gamepad_result()
+            if result.is_success and not self.gamepad_final_passed:
+                return self.round_fail('挑战未通关，已返回入口')
+        else:
+            result = self.round_by_find_and_click_area(screen=self.last_screenshot, screen_name='迷失之地-挑战结果', area_name='按钮-完成',
+                                                       until_not_find_all=[('迷失之地-挑战结果', '按钮-完成')],
+                                                       success_wait=1, retry_wait=1)
         if result.is_success:
             if self.reward_eval_found:
                 # 有业绩点 说明两个都没达成
@@ -1307,6 +1356,10 @@ class LostVoidRunLevel(ZOperation):
     @operation_node(name='保存错误信息')
     def push_error(self) -> OperationRoundResult:
         status = f'{self.previous_node.name}: {self.previous_node.status}'
+        if self.ctx.controller.background_mode:
+            # 保留当前失败现场，避免打开藏品地图后阻断战斗菜单的退出流程。
+            self.save_screenshot()
+            return self.round_fail(status)
         # 打开菜单保存现场
         result = self.round_by_find_and_click_area(screen_name='迷失之地-大世界', area_name='迷失之地-TAB')
         time.sleep(1)
@@ -1332,8 +1385,13 @@ class LostVoidRunLevel(ZOperation):
 
     @node_from(from_name='失败退出空洞')
     @node_from(from_name='处理战斗失败')
-    @operation_node(name='点击失败退出完成')
+    @operation_node(name='点击失败退出完成', node_max_retry_times=60)
     def handle_fail_exit(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            result = self._finish_gamepad_result()
+            if result.is_success:
+                return self.round_fail('挑战未通关，已返回入口')
+            return result
         result = self.round_by_find_and_click_area(screen_name='迷失之地-挑战结果', area_name='按钮-完成',
                                                    until_not_find_all=[('迷失之地-挑战结果', '按钮-完成')],
                                                    success_wait=1, retry_wait=1)
@@ -1342,6 +1400,29 @@ class LostVoidRunLevel(ZOperation):
             return self.round_success(LostVoidRunLevel.STATUS_COMPLETE, data=LostVoidRegionType.ENTRY.value.value)
         else:
             return result
+
+    def _finish_gamepad_result(self) -> OperationRoundResult:
+        """结果页的 B 对应完成；只有实际回到入口才允许上层处理结果。"""
+        if self.gamepad_result_confirm_sent:
+            if all(self.round_by_find_area(self.last_screenshot, '迷失之地-入口', name).is_success
+                   for name in ('手柄-周期重置提醒', '手柄-周期提醒按键')):
+                if not self.gamepad_reset_notice_sent:
+                    area = self.ctx.screen_loader.get_area('迷失之地-入口', '手柄-周期提醒确认')
+                    self.ctx.controller.background_ui._navigate(
+                        self.last_screenshot, area.center, Rect(790,570,1130,685))
+                    self.gamepad_reset_notice_sent = True
+                return self.round_retry('等待周期重置提醒关闭', wait=.5)
+            # 加载途中和入口可能各出现一次；观察旧提醒消失后才允许确认新提醒。
+            self.gamepad_reset_notice_sent = False
+            entries = ['迷失之地-入口-周期', '迷失之地-入口-常规']
+            if self.check_and_update_current_screen(self.last_screenshot, screen_name_list=entries) in entries:
+                return self.round_success('已返回入口')
+            return self.round_retry('等待结算后返回迷失之地入口', wait=.5)
+        if all(self.round_by_find_area(self.last_screenshot, '迷失之地-挑战结果', name).is_success
+               for name in ('标题-挑战结果', '按钮-完成', '手柄-完成按键')):
+            self.ctx.controller.gamepad_ui_press('back')
+            self.gamepad_result_confirm_sent = True
+        return self.round_retry('等待结算完成生效', wait=.5)
 
     def handle_pause(self) -> None:
         ZOperation.handle_pause(self)

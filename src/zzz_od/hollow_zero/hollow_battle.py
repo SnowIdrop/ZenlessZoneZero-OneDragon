@@ -9,9 +9,13 @@ from one_dragon.base.operation.operation_edge import node_from
 from one_dragon.base.operation.operation_node import operation_node
 from one_dragon.base.operation.operation_round_result import OperationRoundResult
 from one_dragon.utils.i18_utils import gt
+from one_dragon.utils import cv2_utils, str_utils
 from one_dragon.utils.log_utils import log
 from zzz_od.application.hollow_zero.withered_domain.withered_domain_run_record import WitheredDomainRunRecord
 from zzz_od.context.zzz_context import ZContext
+from zzz_od.hollow_zero.event import hollow_event_utils
+from zzz_od.hollow_zero.event.choose_resonium import ChooseResonium
+from zzz_od.hollow_zero.event.confirm_resonium import ConfirmResonium
 from zzz_od.hollow_zero.game_data.hollow_zero_event import HollowZeroSpecialEvent
 from zzz_od.operation.zzz_operation import ZOperation
 
@@ -49,6 +53,7 @@ class HollowBattle(ZOperation):
 
     def handle_init(self):
         self.distance_pos: Optional[Rect] = None  # 显示距离的区域
+        self._gamepad_result_retry: bool = False  # 取消晚到暂离弹窗后，才允许再次确认结果
 
     @operation_node(name='加载自动战斗指令', is_start_node=True)
     def load_auto_op(self) -> OperationRoundResult:
@@ -61,6 +66,10 @@ class HollowBattle(ZOperation):
     @node_from(from_name='加载自动战斗指令')
     @operation_node(name='等待战斗画面加载', node_max_retry_times=60)
     def wait_battle_screen(self) -> OperationRoundResult:
+        if (self.ctx.controller.background_mode
+                and hollow_event_utils.is_challenge_result(self.ctx, self.last_screenshot)):
+            self.ctx.auto_battle_context.stop_auto_battle()
+            return self.round_success('已在挑战结果')
         result = self.round_by_find_area(self.last_screenshot, '战斗画面', '按键-普通攻击', retry_wait_round=1)
         return result
 
@@ -168,6 +177,22 @@ class HollowBattle(ZOperation):
     def auto_battle(self) -> OperationRoundResult:
         self.move_times = 0
         self.turn_times = 0
+        if self.ctx.controller.background_mode:
+            if self._cancel_gamepad_suspend():
+                return self.round_wait('等待关闭暂离提示', wait=.5)
+            if hollow_event_utils.is_challenge_result(self.ctx, self.last_screenshot):
+                self.ctx.auto_battle_context.stop_auto_battle()
+                return self.round_success('零号空洞-挑战结果')
+            if all(self.round_by_find_area(self.last_screenshot, '零号空洞-事件', name).is_success
+                   for name in ('手柄-通关标题', '手柄-通关完成')):
+                self.ctx.auto_battle_context.stop_auto_battle()
+                return self.round_success('普通战斗-完成')
+            if all(self.round_by_find_area(self.last_screenshot, '零号空洞-事件', name).is_success
+                   for name in ('手柄-探索总结', '手柄-总结委托')):
+                # 结算出现时残余战斗输入可能打开总结，先停手柄并返回已确认的结算页。
+                self.ctx.auto_battle_context.stop_auto_battle()
+                self.ctx.controller.gamepad_ui_press('back')
+                return self.round_wait('返回空洞结算', wait=.5)
         if self.ctx.auto_battle_context.last_check_end_result is not None:
             self.ctx.auto_battle_context.stop_auto_battle()
             return self.round_success(status=self.ctx.auto_battle_context.last_check_end_result)
@@ -185,6 +210,15 @@ class HollowBattle(ZOperation):
 
         return self.round_wait(wait=self.ctx.battle_assistant_config.screenshot_interval)
 
+    def _cancel_gamepad_suspend(self) -> bool:
+        """首领结算残留 X 会打开暂离弹窗；停战斗输入后取消，保留当前探索。"""
+        if not all(self.round_by_find_area(self.last_screenshot, '零号空洞-战斗', name).is_success
+                   for name in ('手柄-暂离提示', '手柄-暂离取消')):
+            return False
+        self.ctx.auto_battle_context.stop_auto_battle()
+        self.ctx.controller.gamepad_ui_press('back')
+        return True
+
     @node_from(from_name='自动战斗', status='零号空洞-结算周期上限')
     @operation_node(name='结算周期上限')
     def period_reward_full(self) -> OperationRoundResult:
@@ -194,9 +228,20 @@ class HollowBattle(ZOperation):
                                                  success_wait=1, retry_wait=1)
 
     @node_from(from_name='结算周期上限')
+    @node_from(from_name='等待战斗画面加载', status='已在挑战结果')
     @node_from(from_name='自动战斗', status='零号空洞-挑战结果')
     @operation_node(name='战斗结果-确定')
     def after_battle(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if self._cancel_gamepad_suspend():
+                return self.round_retry('等待关闭暂离提示', wait=.5)
+            if not hollow_event_utils.is_challenge_result(self.ctx, self.last_screenshot):
+                return self.round_retry('等待挑战结果', wait=.5)
+            area = self.ctx.screen_loader.get_area('零号空洞-战斗', '战斗结果-确定')
+            if not self.round_by_ocr(self.last_screenshot, '确定', area=area, lcs_percent=1).is_success:
+                return self.round_retry('等待结果确认按钮', wait=.5)
+            self.ctx.controller.gamepad_ui_press('confirm')
+            return self.round_success('手柄结果已确认', wait=.5)
         # 找到后稍微等待: 1.按钮刚出来的时候按不会有响应 2. 奖励列表可能还没有出现
         time.sleep(2)
 
@@ -217,6 +262,9 @@ class HollowBattle(ZOperation):
     @node_from(from_name='自动战斗', status='普通战斗-完成')
     @operation_node(name='普通战斗-完成')
     def mission_complete(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            # 手柄结算的奖励位置不同，缺少旧版丁尼图标不能证明周期奖励已满。
+            return self.round_success(status='普通战斗-完成')
         # 在battle_context里会判断这个的出现
         # 找到后稍微等待: 1.按钮刚出来的时候按不会有响应 2. 奖励列表可能还没有出现
         time.sleep(2)
@@ -233,10 +281,52 @@ class HollowBattle(ZOperation):
 
         return self.round_success(status='普通战斗-完成')
 
+    @node_from(from_name='战斗结果-确定', status='手柄结果已确认')
+    @operation_node(name='等待手柄楼层切换', node_max_retry_times=30, timeout_seconds=60)
+    def wait_gamepad_next_level(self) -> OperationRoundResult:
+        # 以重新出现的探索画面确认转场，不能只凭发出 A 就记录下一层。
+        if self._cancel_gamepad_suspend():
+            self._gamepad_result_retry = True
+            return self.round_retry('等待关闭暂离提示', wait=.5)
+        if self._gamepad_result_retry and hollow_event_utils.is_challenge_result(self.ctx, self.last_screenshot):
+            # 只重发被暂离弹窗阻断的确认，并用新截图复核，避免慢转场时连按 A 误选鸣徽。
+            self.screenshot()
+            result = self.after_battle()
+            if result.is_success:
+                self._gamepad_result_retry = False
+            return self.round_retry(result.status)
+        if self.round_by_find_area(self.last_screenshot, '零号空洞-战斗', '鸣徽-确定').is_success:
+            # 战后诡术鸣徽可能先重构，确认卡片后才会恢复探索画面。
+            result = ConfirmResonium(self.ctx).execute()
+            if not result.success:
+                return self.round_fail(result.status)
+            return self.round_wait(wait=.5)
+        area = self.ctx.screen_loader.get_area('零号空洞-事件', '底部-选择列表')
+        if self.round_by_ocr(self.last_screenshot, '选择', area=area, lcs_percent=1).is_success:
+            result = ChooseResonium(self.ctx).execute()
+            if not result.success:
+                return self.round_fail(result.status)
+            return self.round_wait(wait=.5)
+        level_info = self.ctx.withered_domain.level_info
+        area = self.ctx.screen_loader.get_area('零号空洞-事件', '当前层数')
+        text = self.ctx.ocr.run_ocr_single_line(cv2_utils.crop_image_only(self.last_screenshot, area.rect))
+        observed_level = str_utils.get_positive_digits(text)
+        if (level_info is None or observed_level not in (1, 2, 3)
+                or (level_info.level != -1 and observed_level != level_info.level + 1)):
+            return self.round_retry('未观察到下一层层数', wait=1)
+        current_map = self.ctx.withered_domain.map_service.cal_current_map_by_screen(self.last_screenshot, self.last_screenshot_time)
+        if current_map is None or not current_map.is_valid_map:
+            return self.round_retry('等待下一层电视地图', wait=1)
+        return self.round_success(data=observed_level)
+
     @node_from(from_name='战斗结果-确定')
+    @node_from(from_name='等待手柄楼层切换')
     @operation_node(name='更新楼层信息')
     def update_level_info(self) -> OperationRoundResult:
-        self.ctx.withered_domain.update_to_next_level()
+        if self.ctx.controller.background_mode:
+            self.ctx.withered_domain.update_to_next_level(observed_level=self.previous_node.data)
+        else:
+            self.ctx.withered_domain.update_to_next_level()
         return self.round_success()
 
     @node_from(from_name='自动战斗', status='普通战斗-撤退')

@@ -23,15 +23,25 @@ from zzz_od.hollow_zero.game_data.hollow_zero_event import (
 from zzz_od.operation.zzz_operation import ZOperation
 
 
+def is_challenge_result(ctx: ZContext, screen: MatLike) -> bool:
+    """施工废墟结算标题被进度条遮挡时，以完整统计行和底部按钮共同确认。"""
+    if screen_utils.find_area(ctx, screen, '零号空洞-战斗', '挑战结果') == FindAreaResultEnum.TRUE:
+        return True
+    return all(screen_utils.find_area(ctx, screen, '零号空洞-战斗', name) == FindAreaResultEnum.TRUE
+               for name in ('手柄-结果用时', '手柄-结果完成关卡', '手柄-结果暂离', '手柄-结果确定'))
+
+
 def check_event_at_right(ctx: ZContext, screen: MatLike, ignore_events: set[str]) -> str | None:
     """
     识别右边区域 当前是什么事件
     """
     area = get_event_text_area(ctx)
     part = cv2_utils.crop_image_only(screen, area.rect)
-    white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
-    white = cv2_utils.dilate(white, 5)
-    to_ocr = cv2.bitwise_and(part, part, mask=white)
+    to_ocr = part
+    if not ctx.controller.background_mode:
+        white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
+        white = cv2_utils.dilate(white, 5)
+        to_ocr = cv2.bitwise_and(part, part, mask=white)
     ocr_result_map = ctx.ocr.run_ocr(to_ocr)
 
     event_name_list = []
@@ -87,9 +97,11 @@ def check_entry_opt_pos_at_right(ctx: ZContext, screen: MatLike, ignore_events: 
     """
     area = ctx.screen_loader.get_area('零号空洞-事件', '格子入口选项')
     part = cv2_utils.crop_image_only(screen, area.rect)
-    white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
-    white = cv2_utils.dilate(white, 5)
-    to_ocr = cv2.bitwise_and(part, part, mask=white)
+    to_ocr = part
+    if not ctx.controller.background_mode:
+        white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
+        white = cv2_utils.dilate(white, 5)
+        to_ocr = cv2.bitwise_and(part, part, mask=white)
     ocr_result_map = ctx.ocr.run_ocr(to_ocr)
 
     event_enum_list = []
@@ -130,16 +142,20 @@ def check_entry_opt_pos_at_right(ctx: ZContext, screen: MatLike, ignore_events: 
 
 
 def check_event_text_and_run(op: ZOperation, screen: MatLike, handlers: List[EventOcrResultHandler],
-                             force_bottom_fallback: bool = False) -> OperationRoundResult:
+                             force_bottom_fallback: bool = False, option_names: list[str] | None = None) -> OperationRoundResult:
     """
     识别当前事件的文本 并做出选择
     :param force_bottom_fallback: 调试模式下也使用 点击最下方选项 的兜底 零号业绩速刷需要靠它离开事件
     """
     area = get_event_text_area(op.ctx)
     part = cv2_utils.crop_image_only(screen, area.rect)
-    white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
-    white = cv2_utils.dilate(white, 5)
-    to_ocr = cv2.bitwise_and(part, part, mask=white)
+    if op.ctx.controller.background_mode:
+        # 手柄选中项为黑字，白色遮罩会丢失优先选项。
+        to_ocr = part
+    else:
+        white = cv2.inRange(part, (230, 230, 230), (255, 255, 255))
+        white = cv2_utils.dilate(white, 5)
+        to_ocr = cv2.bitwise_and(part, part, mask=white)
 
     ocr_result_map = op.ctx.ocr.run_ocr(to_ocr)
 
@@ -156,6 +172,15 @@ def check_event_text_and_run(op: ZOperation, screen: MatLike, handlers: List[Eve
         if len(ocr_result.strip()) <= 1:
             continue  # 过滤单字符识别结果
 
+        if op.ctx.controller.background_mode:
+            label = mrl.max
+            crop = part[label.y:label.y + label.h, label.x:label.x + label.w]
+            white = cv2.inRange(crop, (230, 230, 230), (255, 255, 255))
+            yellow = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_RGB2HSV), (25, 180, 160), (42, 255, 255))
+            # 未选中的可用项为白字，选中项为黄底黑字；灰色禁用项不能参与优先级。
+            if cv2.countNonZero(white) < white.size * .04 and cv2.countNonZero(yellow) < yellow.size * .3:
+                continue
+
         mrl.add_offset(area.left_top)
         ocr_result_list.append(ocr_result)
         mrl_list.append(mrl)
@@ -164,6 +189,9 @@ def check_event_text_and_run(op: ZOperation, screen: MatLike, handlers: List[Eve
             bottom_opt_pos = mrl.max
 
     handler_str_list = [gt(handler.target_cn, 'game') for handler in handlers]
+    if option_names is not None:
+        # 过滤扣血选项后仍保留其名称参与身份核对，避免“大袋子”被近似匹配成“小袋子”。
+        handler_str_list = list(dict.fromkeys(handler_str_list + [gt(name, 'game') for name in option_names]))
 
     # 由于选项和识别的文本都是多个，多对多的情况下需要双向匹配才算成功匹配
     for handler in handlers:
@@ -175,7 +203,12 @@ def check_event_text_and_run(op: ZOperation, screen: MatLike, handlers: List[Eve
 
         ocr_result = results[0]
         # 同时需要反向匹配到一样的
-        results2 = difflib.get_close_matches(ocr_result, handler_str_list, n=1)
+        results2 = difflib.get_close_matches(ocr_result, handler_str_list, n=2 if option_names is not None else 1)
+        if (option_names is not None and len(results2) > 1
+                and difflib.SequenceMatcher(None, ocr_result, results2[0]).ratio()
+                == difflib.SequenceMatcher(None, ocr_result, results2[1]).ratio()):
+            # 漏字导致安全与扣血选项同分时，不能按候选顺序任选一个。
+            continue
         if results2 is None or len(results2) == 0 or results2[0] != handler_event_str:
             continue
 
@@ -206,6 +239,17 @@ def check_event_text_and_run(op: ZOperation, screen: MatLike, handlers: List[Eve
 
 
 def click_empty(op: ZOperation, bottom_opt_pos: Optional[MatchResult] = None) -> OperationRoundResult:
+    if op.ctx.controller.background_mode:
+        if all(op.round_by_find_area(op.last_screenshot, '零号空洞-事件', name).is_success
+               for name in ('手柄-消息确认', '手柄-消息选择')):
+            op.ctx.controller.gamepad_ui_press('confirm')
+            return op.round_wait('确认事件消息', wait=.5)
+        # 仅对明确的继续提示确认，不能把任意正文当作可选项。
+        if all(op.round_by_find_area(op.last_screenshot, '零号空洞-事件', name).is_success
+               for name in ('背包', '手柄-事件继续')):
+            op.ctx.controller.gamepad_ui_press('confirm')
+            return op.round_wait('继续事件对话', wait=.5)
+        return op.round_retry('未识别到事件选项或继续提示', wait=1)
     if bottom_opt_pos is not None:
         op.ctx.controller.click(bottom_opt_pos.center)
         time.sleep(0.2)
@@ -217,6 +261,9 @@ def click_rect(op: ZOperation, status: str, rect: Rect, wait: float = 1) -> Oper
     """
     点击一个位置
     """
+    if op.ctx.controller.background_mode:
+        op.ctx.controller.background_ui.select_hollow_event_option(op.last_screenshot, rect.center)
+        return op.round_success(status, wait=wait)
     click = op.ctx.controller.click(rect.center)
     if click:
         time.sleep(0.1)
@@ -311,6 +358,11 @@ def check_screen(ctx: ZContext, screen: MatLike, ignore_events: set[str]) -> str
     识别当前画面的状态
     :param ignore_events: 忽略的事件 当前只有格子的入口选项需要忽略
     """
+    if ctx.controller.background_mode:
+        area = ctx.screen_loader.get_area('零号空洞-商店', '二级标题')
+        titles = ctx.ocr_service.get_ocr_result_list(screen, rect=area.rect)
+        if any(any(gt(text, 'game') in title.data for text in ('鸣徽交易', '鸣徽催化', '特价折扣', '血汗交易')) for title in titles):
+            return HollowZeroSpecialEvent.RESONIUM_STORE_2.value.event_name
     choose = check_bottom_choose(ctx, screen)
     if choose is not None:
         return choose

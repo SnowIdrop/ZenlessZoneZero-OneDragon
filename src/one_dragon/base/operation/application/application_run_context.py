@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import StrEnum
+from threading import RLock
 from typing import TYPE_CHECKING, TypeVar
 
 from one_dragon.base.operation.context_event_bus import ContextEventBus
@@ -42,6 +43,7 @@ class ApplicationRunResult:
     app_id: str
     instance_idx: int | None
     group_id: str | None
+    error_message: str | None = None
 
 
 class ApplicationRunContextStateEnum(StrEnum):
@@ -108,6 +110,7 @@ class ApplicationRunContext:
         self.current_group_id: str | None = None
         self.current_application: Application | None = None
         self.last_run_result: ApplicationRunResult | None = None
+        self._finish_lock: RLock = RLock()
         # 同步运行应用的最近一次结果，供 backend 运行槽固化终态使用。
         self.last_application_result: OperationResult | None = None
 
@@ -371,21 +374,30 @@ class ApplicationRunContext:
         dispatch_event: bool = True,
     ) -> ApplicationRunResult:
         """统一收口运行结束逻辑。"""
-        if self.is_context_stop:
-            if self.last_run_result is None:
-                self.last_run_result = result
-            return self.last_run_result
+        # 热键停止和应用执行线程可能同时结束；设备释放完成后才能发布最终结果。
+        with self._finish_lock:
+            if self.is_context_stop:
+                if self.last_run_result is None:
+                    self.last_run_result = result
+                return self.last_run_result
 
-        self.last_run_result = result
-        if self.is_context_running:
-            self.switch_context_pause_and_run()
+            if self.is_context_running:
+                self.switch_context_pause_and_run()
 
-        self._run_state = ApplicationRunContextStateEnum.STOP
-        if dispatch_event:
-            self.event_bus.dispatch_event(
-                ApplicationRunContextStateEventEnum.STOP, result
-            )
-        return result
+            try:
+                self.ctx.controller.reset_input()
+            except Exception as e:
+                log.error('结束运行时释放输入失败', exc_info=True)
+                result.finish_reason = RunFinishReason.FAILED
+                result.error_message = f'释放输入失败: {e}'
+                self.last_application_result = OperationResult(success=False, status=result.error_message)
+            self.last_run_result = result
+            self._run_state = ApplicationRunContextStateEnum.STOP
+            if dispatch_event:
+                self.event_bus.dispatch_event(
+                    ApplicationRunContextStateEventEnum.STOP, result
+                )
+            return result
 
     def start_running(self) -> bool:
         """
@@ -397,23 +409,24 @@ class ApplicationRunContext:
         Returns:
             bool: 是否成功开始运行
         """
-        if not self.is_context_stop:
-            log.error("请先结束其他运行中的功能 再启动")
-            return False
-        if self.ctx.controller is None:
-            log.error("未初始化控制器")
-            return False
+        with self._finish_lock:
+            if not self.is_context_stop:
+                log.error("请先结束其他运行中的功能 再启动")
+                return False
+            if self.ctx.controller is None:
+                log.error("未初始化控制器")
+                return False
 
-        if self.ctx.controller.init_before_context_run():
-            self.last_run_result = None
-            self._run_state = ApplicationRunContextStateEnum.RUNNING
-            self.event_bus.dispatch_event(
-                ApplicationRunContextStateEventEnum.START, self._run_state
-            )
-            return True
-        else:
-            log.error("运行前初始化失败")
-            return False
+            if self.ctx.controller.init_before_context_run():
+                self.last_run_result = None
+                self._run_state = ApplicationRunContextStateEnum.RUNNING
+                self.event_bus.dispatch_event(
+                    ApplicationRunContextStateEventEnum.START, self._run_state
+                )
+                return True
+            else:
+                log.error("运行前初始化失败")
+                return False
 
     def stop_running(self) -> ApplicationRunResult:
         """
@@ -431,18 +444,19 @@ class ApplicationRunContext:
 
         根据当前状态在暂停和运行之间切换，并发送相应的事件。
         """
-        if self._run_state == ApplicationRunContextStateEnum.RUNNING:
-            log.info("暂停运行")
-            self._run_state = ApplicationRunContextStateEnum.PAUSE
-            self.event_bus.dispatch_event(
-                ApplicationRunContextStateEventEnum.PAUSE, self._run_state
-            )
-        elif self._run_state == ApplicationRunContextStateEnum.PAUSE:
-            log.info("恢复运行")
-            self._run_state = ApplicationRunContextStateEnum.RUNNING
-            self.event_bus.dispatch_event(
-                ApplicationRunContextStateEventEnum.RESUME, self._run_state
-            )
+        with self._finish_lock:
+            if self._run_state == ApplicationRunContextStateEnum.RUNNING:
+                log.info("暂停运行")
+                self._run_state = ApplicationRunContextStateEnum.PAUSE
+                self.event_bus.dispatch_event(
+                    ApplicationRunContextStateEventEnum.PAUSE, self._run_state
+                )
+            elif self._run_state == ApplicationRunContextStateEnum.PAUSE:
+                log.info("恢复运行")
+                self._run_state = ApplicationRunContextStateEnum.RUNNING
+                self.event_bus.dispatch_event(
+                    ApplicationRunContextStateEventEnum.RESUME, self._run_state
+                )
 
     @property
     def run_status_text(self) -> str:
@@ -509,7 +523,7 @@ class ApplicationRunContext:
                 )
             )
 
-        finish_reason: RunFinishReason
+        finish_reason: RunFinishReason = RunFinishReason.FAILED
         try:
             self.current_app_id = app_id
             self.current_instance_idx = instance_idx
@@ -530,12 +544,9 @@ class ApplicationRunContext:
                 success=False, status=f'执行异常: {e}'
             )
         finally:
-            if self.last_run_result is None:
-                run_result = self._finish_running(
-                    self._create_run_result(finish_reason)
-                )
-            else:
-                run_result = self.last_run_result
+            run_result = self._finish_running(self._create_run_result(finish_reason))
+            if run_result.error_message is not None:
+                self.last_application_result = OperationResult(success=False, status=run_result.error_message)
             self.current_app_id = None
             self.current_instance_idx = None
             self.current_group_id = None

@@ -56,6 +56,8 @@ class NotoriousHuntApp(ZApplication):
         """
         self.next_plan: ChargePlanItem | None = None
         self.last_tried_plan: ChargePlanItem | None = None
+        self._reward_navigation_started: bool = False
+        self._reward_claim_requested: bool = False
 
     @operation_node(name='开始恶名狩猎', is_start_node=True)
     def start_hunt(self) -> OperationRoundResult:
@@ -136,8 +138,26 @@ class NotoriousHuntApp(ZApplication):
     @node_from(from_name='恶名狩猎', status=NotoriousHunt.STATUS_NO_LEFT_TIMES)
     @node_from(from_name='查找下一条计划', status=STATUS_NO_PLAN)
     @node_from(from_name='查找下一条计划', status=STATUS_ROUND_FINISHED)
-    @operation_node(name='点击奖励入口')
+    @operation_node(name='点击奖励入口', node_max_retry_times=8)
     def click_reward_entry(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if not self._reward_navigation_started:
+                # 空计划也要先进入恶名狩猎分类，不能在原页面点击旧版奖励坐标。
+                result = TransportByCompendium(self.ctx, '训练', '恶名狩猎').execute()
+                if not result.success:
+                    return self.round_by_op_result(result)
+                self._reward_navigation_started = True
+                return self.round_retry('已进入恶名狩猎分类', wait=.5)
+            if self.round_by_find_area(
+                self.last_screenshot, '恶名狩猎', '手柄-周期挑战标题',
+            ).is_success:
+                return self.round_success()
+            if not self.round_by_find_area(
+                self.last_screenshot, '恶名狩猎', '手柄-周期挑战入口',
+            ).is_success:
+                return self.round_retry('未识别周期挑战入口', wait=.5)
+            self.round_by_click_area('恶名狩猎', '手柄-周期挑战入口')
+            return self.round_retry('打开周期挑战', wait=.5)
         return self.round_by_click_area(
             '恶名狩猎', '奖励入口',
             success_wait=1, retry_wait=1
@@ -147,6 +167,30 @@ class NotoriousHuntApp(ZApplication):
     @node_notify(when=NotifyTiming.CURRENT_DONE)
     @operation_node(name='全部领取', node_max_retry_times=2)
     def claim_all(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if self._reward_claim_requested:
+                result = self.round_by_find_and_click_area(
+                    self.last_screenshot, '快捷手册', '活跃度奖励-确认',
+                )
+                if result.is_success:
+                    return self.round_retry('关闭周期挑战奖励消息', wait=.5)
+            if not self.round_by_find_area(
+                self.last_screenshot, '恶名狩猎', '手柄-周期挑战标题',
+            ).is_success:
+                return self.round_retry('未确认周期挑战奖励页', wait=.5)
+            if not self.round_by_find_area(
+                self.last_screenshot, '恶名狩猎', '手柄-全部领取',
+            ).is_success:
+                return self.round_retry('未识别全部领取按钮', wait=.5)
+            enabled = self.round_by_find_area(self.last_screenshot, '恶名狩猎', '手柄-可领取奖励').is_success
+            if not enabled:
+                if self.round_by_find_area(self.last_screenshot, '恶名狩猎', '手柄-暂无奖励').is_success:
+                    return self.round_success('当前无可领取周期挑战奖励')
+                return self.round_retry('未确认领取按钮是否可用', wait=.5)
+            if not self._reward_claim_requested:
+                self.ctx.controller.gamepad_ui_press('secondary')
+                self._reward_claim_requested = True
+            return self.round_retry('等待周期挑战奖励领取结果', wait=1)
         return self.round_by_find_and_click_area(
             self.last_screenshot, '恶名狩猎', '全部领取',
             success_wait=1, retry_wait=0.5
@@ -158,4 +202,8 @@ class NotoriousHuntApp(ZApplication):
     @operation_node(name='返回大世界')
     def back_to_world(self) -> OperationRoundResult:
         op = BackToNormalWorld(self.ctx)
-        return self.round_by_op_result(op.execute())
+        result = op.execute()
+        if self.ctx.controller.background_mode and self.previous_node.is_fail:
+            # 返回只是清理现场，不能把未进入奖励页或未识别领取按钮改记为成功。
+            return self.round_fail(self.previous_node.status)
+        return self.round_by_op_result(result)

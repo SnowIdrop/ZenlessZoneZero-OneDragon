@@ -128,6 +128,8 @@ class ZContext(OneDragonContext):
                 standard_width=self.project_config.screen_standard_width,
                 standard_height=self.project_config.screen_standard_height
             )
+            from zzz_od.controller.gamepad_ui_navigation import GamepadUiNavigation
+            self.controller.background_ui = GamepadUiNavigation(self)
             # 初始化窗口标题
             self.controller.set_window_title(self._get_win_title())
 

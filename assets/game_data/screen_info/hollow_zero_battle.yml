@@ -80,3 +80,57 @@ area_list:
   template_sub_dir: hollow
   template_id: critical_reward_money
   template_match_threshold: 0.7
+- area_name: 手柄-暂离提示
+  area_type: text
+  pc_rect:
+  - 650
+  - 480
+  - 1260
+  - 570
+  text: 是否确认暂停空洞探索，返回街区
+  lcs_percent: 0.9
+- area_name: 手柄-暂离取消
+  area_type: text
+  pc_rect:
+  - 780
+  - 590
+  - 890
+  - 655
+  text: 取消
+  lcs_percent: 1
+- area_name: 手柄-结果用时
+  area_type: text
+  pc_rect:
+  - 850
+  - 455
+  - 1000
+  - 515
+  text: 总计用时
+  lcs_percent: 1
+- area_name: 手柄-结果完成关卡
+  area_type: text
+  pc_rect:
+  - 885
+  - 522
+  - 1030
+  - 578
+  text: 完成关卡
+  lcs_percent: 1
+- area_name: 手柄-结果暂离
+  area_type: text
+  pc_rect:
+  - 975
+  - 908
+  - 1040
+  - 960
+  text: 暂离
+  lcs_percent: 1
+- area_name: 手柄-结果确定
+  area_type: text
+  pc_rect:
+  - 1110
+  - 908
+  - 1180
+  - 960
+  text: 确定
+  lcs_percent: 1

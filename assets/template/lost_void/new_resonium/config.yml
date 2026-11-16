@@ -1,0 +1,12 @@
+sub_dir: lost_void
+template_id: new_resonium
+template_name: 鸣徽NEW标识
+template_shape: polygon
+auto_mask: true
+point_list:
+- 1204, 248
+- 1229, 253
+- 1254, 255
+- 1253, 276
+- 1226, 272
+- 1200, 270

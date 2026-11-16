@@ -244,7 +244,8 @@ class WitheredDomainContext:
         if target is None:
             return None
         # 两次想要前往同一个节点
-        if (self.last_target_node is not None
+        if (not self.ctx.controller.background_mode
+                and self.last_target_node is not None
                 and hollow_map_utils.is_same_node(self.last_target_node, target)):
             # 第一步需要点击的节点都一样 可能是被卡着过不去了
             last_node_to_move = self.last_target_node.next_node_to_move
@@ -264,12 +265,13 @@ class WitheredDomainContext:
         return target
 
     def update_context_after_move(self, current_map: HollowZeroMap, node: HollowZeroMapNode,
-                                  update_current: bool = True) -> None:
+                                  update_current: bool = True, same_map: bool = False) -> None:
         """
         点击后 更新
         :param current_map: 当前地图
         :param node: 前往的节点
         :param update_current: 是否更新当前地图
+        :param same_map: 已确认在原图完成交互，不按条目的传送类型清空访问记录
         :return:
         """
         visited = None
@@ -292,7 +294,7 @@ class WitheredDomainContext:
             self.update_map_current_node(current_map, node)
 
         # node的类型已经被改了 只能用visited来判断
-        if visited.entry.is_tp:
+        if visited.entry.is_tp and not same_map:
             self._visited_nodes.clear()
 
             if visited.entry.entry_name == '传送点':
@@ -338,13 +340,24 @@ class WitheredDomainContext:
         next_current_node.confidence = 0.6
         current_map.current_idx = next_current_node_idx
 
-    def update_to_next_level(self) -> None:
+    def reset_current_map(self) -> None:
+        """同层区域重新展开后丢弃旧地图访问记录，不修改楼层和奖励次数。"""
+        self._visited_nodes.clear()
+        self.last_target_node = None
+        self.map_service.clear_map_result()
+
+    def update_to_next_level(self, observed_level: int | None = None) -> None:
         """
         前往下一层了 更新信息
         """
         self._visited_nodes.clear()
         if self.level_info is not None:
-            self.level_info.to_next_level()
+            if observed_level is None:
+                self.level_info.to_next_level()
+            else:
+                # 战斗中接力时旧层数未知；直接采用转场后确认的层数，不猜测或重复递增。
+                self.level_info.level = observed_level
+                self.level_info.phase = 1
         self.last_target_node = None
         self.map_service.clear_map_result()
 

@@ -6,6 +6,7 @@
 
 import time
 from collections.abc import Callable
+from threading import RLock
 
 from one_dragon.base.controller.pc_button.pc_button_controller import PcButtonController
 
@@ -21,6 +22,7 @@ class VirtualGamepadController(PcButtonController):
     def __init__(self) -> None:
         PcButtonController.__init__(self)
         self.pad = None
+        self._input_lock: RLock = RLock()
         self._key_bindings: dict[str, tuple[Callable[[], None], Callable[[], None]]] = {}
 
     def _register_button(self, key: str, btn_const: int) -> None:
@@ -64,8 +66,9 @@ class VirtualGamepadController(PcButtonController):
         press_time: float | None,
     ) -> None:
         """执行按键动作，统一处理按下时长和释放逻辑。"""
-        activate()
-        self.pad.update()
+        with self._input_lock:
+            activate()
+            self.pad.update()
 
         if press:
             if press_time is None:  # 按住不放
@@ -75,8 +78,9 @@ class VirtualGamepadController(PcButtonController):
                 press_time = self.key_press_time
 
         time.sleep(max(self.key_press_time, press_time))
-        deactivate()
-        self.pad.update()
+        with self._input_lock:
+            deactivate()
+            self.pad.update()
 
     def tap(self, key: str) -> None:
         if key is None:
@@ -93,10 +97,18 @@ class VirtualGamepadController(PcButtonController):
     def release(self, key: str) -> None:
         if key is None:
             return
-        _, deactivate = self._key_bindings[key]
-        deactivate()
-        self.pad.update()
+        with self._input_lock:
+            _, deactivate = self._key_bindings[key]
+            deactivate()
+            self.pad.update()
 
     def reset(self) -> None:
-        self.pad.reset()
-        self.pad.update()
+        with self._input_lock:
+            self.pad.reset()
+            self.pad.update()
+
+    def set_right_stick(self, x: float, y: float) -> None:
+        """转向写入与归零共用锁，避免同时修改手柄报告。"""
+        with self._input_lock:
+            self.pad.right_joystick_float(x, y)
+            self.pad.update()

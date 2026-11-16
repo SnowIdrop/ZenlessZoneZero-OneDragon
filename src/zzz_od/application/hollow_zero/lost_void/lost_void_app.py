@@ -125,6 +125,11 @@ class LostVoidApp(ZApplication):
     @operation_node(name='前往迷失之地-入口', node_max_retry_times=20)
     def choose_lost_void_entry(self) -> OperationRoundResult:
         """前往迷失之地入口"""
+        if self.ctx.controller.background_mode:
+            update = self.round_by_find_area(self.last_screenshot, '迷失之地-入口', '更新-标题')
+            if update.is_success:
+                self.ctx.controller.gamepad_ui_press('back')
+                return self.round_wait('关闭内容更新', wait=.5)
         result = self.round_by_ocr_and_click(self.last_screenshot, '迷失之地')
         if result.is_success:
             return self.round_retry('尝试进入迷失之地-入口', wait=1)
@@ -149,7 +154,7 @@ class LostVoidApp(ZApplication):
     @node_from(from_name='前往迷失之地-入口')
     @node_from(from_name='通关后处理')
     @node_notify(when=NotifyTiming.CURRENT_DONE, send_image=False, detail=True)
-    @operation_node(name='识别悬赏委托完成进度')
+    @operation_node(name='识别悬赏委托完成进度', timeout_seconds=30)
     def check_bounty_commission_before(self) -> OperationRoundResult:
         """
         识别悬赏委托完成进度
@@ -165,6 +170,19 @@ class LostVoidApp(ZApplication):
             if self.config.mission_name == '矩阵行动':
                 return self.round_success(LostVoidApp.STATUS_AGAIN_MATRIX)
             return self.round_success(LostVoidApp.STATUS_AGAIN)
+
+        if self.ctx.controller.background_mode:
+            first_run = self.round_by_find_area(self.last_screenshot, '迷失之地-入口', '悬赏-首次解锁提示')
+            if first_run.is_success:
+                self.ctx.controller.gamepad_ui_press('confirm')
+                if self.config.mission_name != '战线肃清':
+                    return self.round_fail('需先完成一次战线肃清解锁悬赏委托')
+                # 未解锁不是已完成；按原战线肃清配置挑战，完成后再读实际进度。
+                return self.round_success(LostVoidApp.STATUS_AGAIN, wait=.5)
+            entry = self.round_by_find_area(self.last_screenshot, '迷失之地-入口', '手柄-悬赏委托')
+            if entry.is_success:
+                self.ctx.controller.gamepad_ui_press('tertiary')
+                return self.round_wait('打开悬赏委托进度', wait=.5)
 
         result = self.round_by_find_area(self.last_screenshot, '迷失之地-入口', '按钮-悬赏委托')
         if not result.is_success:
@@ -517,7 +535,10 @@ class LostVoidApp(ZApplication):
                 log.debug(
                     f"【追新模式】 找到无等级战略，点击坐标: {click_pos} (相对: ({center_x}, {center_y}), 偏移: {no_level_context.crop_offset})"
                 )
-                self.ctx.controller.click(click_pos)
+                if self.ctx.controller.background_mode:
+                    self.ctx.controller.background_ui.select_hollow_strategy_target(self.last_screenshot, click_pos)
+                else:
+                    self.ctx.controller.click(click_pos)
                 time.sleep(1)
                 return self._click_confirm_after_strategy_chosen()
 
@@ -571,7 +592,10 @@ class LostVoidApp(ZApplication):
                 log.debug(
                     f"【追新模式】 点击目标坐标: {click_pos} (相对: ({center_x}, {center_y}), 偏移: {frame_context.crop_offset})"
                 )
-                self.ctx.controller.click(click_pos)
+                if self.ctx.controller.background_mode:
+                    self.ctx.controller.background_ui.select_hollow_strategy_target(self.last_screenshot, click_pos)
+                else:
+                    self.ctx.controller.click(click_pos)
                 time.sleep(1)
                 return self._click_confirm_after_strategy_chosen()
 
@@ -590,7 +614,10 @@ class LostVoidApp(ZApplication):
             offset_x, offset_y = frame_context.crop_offset
             click_pos = Point(center_x + offset_x, center_y + offset_y)
             log.debug(f"【追新模式-回退】 点击目标坐标: {click_pos} (相对: ({center_x}, {center_y}), 偏移: {frame_context.crop_offset})")
-            self.ctx.controller.click(click_pos)
+            if self.ctx.controller.background_mode:
+                self.ctx.controller.background_ui.select_hollow_strategy_target(self.last_screenshot, click_pos)
+            else:
+                self.ctx.controller.click(click_pos)
             time.sleep(1)
             return self._click_confirm_after_strategy_chosen()
 
@@ -626,6 +653,9 @@ class LostVoidApp(ZApplication):
         """
         通过OCR识别选择调查战略
         """
+        if self.ctx.controller.background_mode:
+            self.ctx.controller.background_ui.select_hollow_strategy(self.ctx.lost_void.challenge_config.investigation_strategy)
+            return self._click_confirm_after_strategy_chosen()
         ocr_result_map = self.ctx.ocr.run_ocr(self.last_screenshot)
         ocr_word_list = list(ocr_result_map.keys())
         target = gt(self.ctx.lost_void.challenge_config.investigation_strategy, 'game')

@@ -15,6 +15,11 @@
 | screen_name | 文件 | 简介 |
 |---|---|---|
 | 菜单 | [menu.md](menu.md) | 游戏主菜单 |
+| 战斗-菜单 | [battle_menu.md](battle_menu.md) | 手柄暂停菜单及重新开始确认框 |
+| 绳网 | [inter_knot.md](inter_knot.md) | 手柄日程页与停止任务追踪 |
+| 恶名狩猎 | [notorious_hunt.md](notorious_hunt.md) | 快捷手册的周期挑战奖励页 |
+| 通用-出战 | [common_deploy.md](common_deploy.md) | 手柄编队页、空队伍子态 |
+| 零号空洞-入口 | [withered_domain.md](withered_domain.md) | 枯萎之都手柄区域图、关卡列表、六人编队 |
 | 米哈游启动页 | [米哈游启动页.md](米哈游启动页.md) | 打开游戏首个画面(品牌/合规);screen_info 缺口 |
 | 警告:游戏前详阅 | [警告_游戏前详阅.md](警告_游戏前详阅.md) | 登录前的光敏性癫痫警告页;screen_info 缺口 |
 | 绝区零标题页 | [绝区零标题页.md](绝区零标题页.md) | 游戏 logo 展示页;screen_info 缺口 |

@@ -57,6 +57,7 @@ class UseBangbooPlugin(ZOperation):
         self._gesture_times: int = 0  # 尝试打开列表的手势次数
         self._last_is_click: bool | None = None  # 上一次手势是否点击
         self._quick_used: bool = False  # 是否有手势没能打开列表 即可能快速使用了插件
+        self._gamepad_seen_plugins: set[str] = set()
 
     @operation_node(name='打开列表', is_start_node=True, node_max_retry_times=3)
     def open_list(self) -> OperationRoundResult:
@@ -78,7 +79,15 @@ class UseBangbooPlugin(ZOperation):
             use_click = known
 
         entry = self.ctx.screen_loader.get_area(self.SCREEN_NAME, '邦布插件-入口')
-        if use_click:
+        if self.ctx.controller.background_mode:
+            if not self.round_by_find_area(self.last_screenshot, self.SCREEN_NAME, '背包').is_success:
+                return self.round_retry('未确认电视探索画面', wait=1)
+            if use_click:
+                self.ctx.controller.gamepad_ui_press('secondary')
+            else:
+                key = 'ds4_square' if self.ctx.controller.game_config.background_gamepad_type == 'ds4' else 'xbox_x'
+                self.ctx.controller.btn_press(key, self.LONG_PRESS_SECONDS)
+        elif use_click:
             self.ctx.controller.click(entry.center)
         else:
             self.ctx.controller.click(entry.center, press_time=self.LONG_PRESS_SECONDS)
@@ -89,6 +98,22 @@ class UseBangbooPlugin(ZOperation):
     @node_from(from_name='打开列表')
     @operation_node(name='选择插件', node_max_retry_times=3)
     def choose_plugin(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if not self.round_by_find_area(self.last_screenshot, self.SCREEN_NAME, '邦布插件-标题').is_success:
+                return self.round_retry('未确认邦布插件列表', wait=.5)
+            area = self.ctx.screen_loader.get_area(self.SCREEN_NAME, '邦布插件-名称')
+            names = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=area.rect)
+            if len(names) != 1:
+                return self.round_retry('未能识别当前插件名称', wait=.5)
+            name = names[0].data
+            if self.round_by_ocr(self.last_screenshot, self.plugin.value, area=area, lcs_percent=.9).is_success:
+                return self.round_success(self.STATUS_CHOSEN)
+            if name in self._gamepad_seen_plugins or len(self._gamepad_seen_plugins) >= 5:
+                self.ctx.controller.gamepad_ui_press('back')
+                return self.round_fail(f'列表里没有 {self.plugin.value}')
+            self._gamepad_seen_plugins.add(name)
+            self.ctx.controller.gamepad_ui_press('right')
+            return self.round_wait('查看下一插件', wait=.5)
         if self._slots is None:
             self._slots = self._find_slots(self.last_screenshot)
             log.info(f'识别到插件槽位 {len(self._slots)} 个')
@@ -116,6 +141,14 @@ class UseBangbooPlugin(ZOperation):
     @node_from(from_name='选择插件', status=STATUS_CHOSEN)
     @operation_node(name='使用', node_max_retry_times=3)
     def click_use(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            area = self.ctx.screen_loader.get_area(self.SCREEN_NAME, '邦布插件-名称')
+            if not (self.round_by_find_area(self.last_screenshot, self.SCREEN_NAME, '邦布插件-标题').is_success
+                    and self.round_by_ocr(self.last_screenshot, self.plugin.value, area=area, lcs_percent=.9).is_success
+                    and self.round_by_find_area(self.last_screenshot, self.SCREEN_NAME, '邦布插件-使用').is_success):
+                return self.round_retry('使用前未能确认目标插件', wait=.5)
+            self.ctx.controller.gamepad_ui_press('confirm')
+            return self.round_success(wait=1)
         return self.round_by_find_and_click_area(self.last_screenshot, self.SCREEN_NAME, '邦布插件-使用',
                                                  success_wait=1, retry_wait=1)
 

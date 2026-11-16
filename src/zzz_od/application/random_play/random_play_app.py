@@ -138,10 +138,11 @@ class RandomPlayApp(ZApplication):
     @node_from(from_name='等待经营画面加载')
     @operation_node(name='识别营业状态')
     def check_running(self) -> OperationRoundResult:
-        result = self.round_by_find_area(self.last_screenshot, '影像店营业', '正在营业')
+        prefix = '手柄-' if self.ctx.controller.background_mode else ''
+        result = self.round_by_find_area(self.last_screenshot, '影像店营业', f'{prefix}正在营业')
         if result.is_success:
             return self.round_success(RandomPlayApp.STATUS_ALREADY_RUNNING)
-        result = self.round_by_find_area(self.last_screenshot, '影像店营业', '开始营业')
+        result = self.round_by_find_area(self.last_screenshot, '影像店营业', f'{prefix}开始营业')
         if result.is_success:
             return self.round_success()
 
@@ -263,11 +264,9 @@ class RandomPlayApp(ZApplication):
         if not result.is_success:
             return self.round_retry(status=result.status, wait=1)
 
-        areas = [
-            self.ctx.screen_loader.get_area('影像店营业', '录像带主题-1'),
-            self.ctx.screen_loader.get_area('影像店营业', '录像带主题-2'),
-            self.ctx.screen_loader.get_area('影像店营业', '录像带主题-3')
-        ]
+        prefix = '手柄-' if self.ctx.controller.background_mode else ''
+        areas = [self.ctx.screen_loader.get_area('影像店营业', f'{prefix}录像带主题-{idx}')
+                 for idx in range(1, 4)]
 
         target_list = [gt(i, 'game') for i in self._all_video_themes]
         for area in areas:
@@ -304,10 +303,11 @@ class RandomPlayApp(ZApplication):
     @node_from(from_name='点击录像带入口')
     @operation_node(name='识别推荐上架')
     def check_recommended(self) -> OperationRoundResult:
-        result = self.round_by_find_and_click_area(self.last_screenshot, '影像店营业', '推荐上架')
+        area_name = '手柄-推荐上架' if self.ctx.controller.background_mode else '推荐上架'
+        result = self.round_by_find_and_click_area(self.last_screenshot, '影像店营业', area_name)
 
         if result.is_success:
-            return self.round_success(status=result.status, wait=1)
+            return self.round_success(status='推荐上架', wait=1)
 
         return self.round_by_find_area(self.last_screenshot, '影像店营业', '上架筛选', retry_wait=1)
 
@@ -406,7 +406,8 @@ class RandomPlayApp(ZApplication):
     @node_from(from_name='返回')
     @operation_node(name='开始营业')
     def start(self) -> OperationRoundResult:
-        return self.round_by_find_and_click_area(self.last_screenshot, '影像店营业', '开始营业',
+        area_name = '手柄-开始营业' if self.ctx.controller.background_mode else '开始营业'
+        return self.round_by_find_and_click_area(self.last_screenshot, '影像店营业', area_name,
                                                  retry_wait=1)
 
     @node_from(from_name='开始营业')

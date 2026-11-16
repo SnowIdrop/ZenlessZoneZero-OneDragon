@@ -20,6 +20,13 @@ class Deploy(ZOperation):
     @operation_node(name='出战', is_start_node=True, timeout_seconds=60)
     @node_notify(when=NotifyTiming.CURRENT_FAIL, detail=True)
     def deploy(self) -> OperationRoundResult:
+        if (self.ctx.controller.background_mode
+                and self.round_by_find_area(self.last_screenshot, '通用-出战', '手柄-预备编队').is_success):
+            # 仅检查三人编队页；枯萎之都六人页的下排 EMPTY 是候补空槽。
+            area = self.ctx.screen_loader.get_area('通用-出战', '手柄-队员槽').rect
+            labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=area)
+            if sum(label.data.upper() == 'EMPTY' for label in labels) == 3:
+                return self.round_fail('当前出战队伍为空，请先配置代理人或预备编队')
         return self.round_by_find_and_click_area(
             self.last_screenshot, '通用-出战', '按钮-出战',
             success_wait=1, retry_wait=1,

@@ -35,12 +35,15 @@ class PcScreenshotController:
         }
         self.active_strategy_name: str | None = None
 
-    def get_screenshot(self, independent: bool = False, resize: bool = True) -> MatLike | None:
+    def get_screenshot(
+        self, independent: bool = False, resize: bool = True, *, allow_fallback: bool = True,
+    ) -> MatLike | None:
         """根据初始化的方法获取截图
 
         Args:
             independent: 是否独立截图（不进行初始化，使用临时的截图器）
             resize: 是否缩放到标准分辨率
+            allow_fallback: 是否允许切换到其他截图方式；后台模式只允许 PrintWindow。
 
         Returns:
             截图数组，失败返回 None
@@ -53,7 +56,9 @@ class PcScreenshotController:
         if rect is None or rect.width <= 0 or rect.height <= 0:
             return None
 
-        if independent:
+        if not allow_fallback:
+            methods_to_try_names = [ScreenshotMethodEnum.PRINT_WINDOW.value.value]
+        elif independent:
             # 独立模式，按默认优先级尝试，不依赖已初始化的实例
             methods_to_try_names = self._get_method_priority_list(ScreenshotMethodEnum.AUTO.value.value)
         else:

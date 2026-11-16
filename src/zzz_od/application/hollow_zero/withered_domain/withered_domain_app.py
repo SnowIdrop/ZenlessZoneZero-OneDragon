@@ -128,6 +128,9 @@ class WitheredDomainApp(ZApplication):
     @operation_node(name='前往枯萎之都-入口', node_max_retry_times=20)
     def choose_withered_domain_entry(self) -> OperationRoundResult:
         """前往枯萎之都入口"""
+        if (self.ctx.controller.background_mode
+                and self.ctx.controller.background_ui.is_withered_area_map(self.last_screenshot)):
+            return self.round_success('已进入枯萎之都-入口')
         entry_result = self.round_by_find_area(self.last_screenshot, '零号空洞-入口', '街区')
         if entry_result.is_success:
             return self.round_success('已进入枯萎之都-入口')
@@ -163,10 +166,19 @@ class WitheredDomainApp(ZApplication):
     @node_from(from_name='选择副本')
     @operation_node(name='下一步')
     def click_next(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if self.ctx.controller.background_ui.resume_withered_exploration(self.last_screenshot, self.mission_name):
+                self.level = -1
+                self.phase = -1
+                return self.round_success('继续-确认', wait=1)
+            # 正文不完整时不能让通用确认或弹窗后的下一步绕过关卡核对。
+            if self.round_by_find_area(self.last_screenshot, '零号空洞-入口', '继续-确认').is_success:
+                return self.round_retry('继续探索提示未完整识别', wait=1)
         result = self.round_by_find_and_click_area(self.last_screenshot, '零号空洞-入口', '下一步')
         if result.is_success:
             time.sleep(0.5)
-            self.ctx.controller.mouse_move(ScreenNormalWorldEnum.UID.value.center)  # 点击后 移开鼠标 防止识别不到出战
+            if not self.ctx.controller.background_mode:
+                self.ctx.controller.mouse_move(ScreenNormalWorldEnum.UID.value.center)  # 点击后移开鼠标，防止遮挡出战文字
             return self.round_wait(result.status, wait=0.5)
 
         result = self.round_by_find_and_click_area(self.last_screenshot, '零号空洞-入口', '行动中-确认')
@@ -177,11 +189,12 @@ class WitheredDomainApp(ZApplication):
         if result.is_success:
             return self.round_success(result.status, wait=1)
 
-        result = self.round_by_find_and_click_area(self.last_screenshot, '零号空洞-入口', '继续-确认')
-        if result.is_success:
-            self.level = -1
-            self.phase = -1
-            return self.round_success(result.status, wait=1)
+        if not self.ctx.controller.background_mode:
+            result = self.round_by_find_and_click_area(self.last_screenshot, '零号空洞-入口', '继续-确认')
+            if result.is_success:
+                self.level = -1
+                self.phase = -1
+                return self.round_success(result.status, wait=1)
 
         return self.round_retry(wait=1)
 

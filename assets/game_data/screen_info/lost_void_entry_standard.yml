@@ -71,7 +71,7 @@ area_list:
 - area_name: 作战潜能
   id_mark: true
   pc_rect:
-  - 909
+  - 765
   - 979
   - 1037
   - 1064

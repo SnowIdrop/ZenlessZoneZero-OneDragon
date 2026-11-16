@@ -56,6 +56,18 @@ class BackToNormalWorld(ZOperation):
 
             return self.round_success(status=current_screen)
 
+        if self.ctx.controller.background_mode:
+            # 出战准备的「出战」会误匹配「退出战斗」；已确认三人编队页时只用 B 返回。
+            if all(self.round_by_find_area(self.last_screenshot, '通用-出战', name).is_success
+                   for name in ('手柄-预备编队', '按钮-出战')):
+                self.ctx.controller.gamepad_ui_press('back')
+                return self.round_retry('退出出战准备', wait=.5)
+            # 手柄功能导览没有左上角返回图标；两处固定文字同时出现后才能用 B 关闭。
+            if all(self.round_by_find_area(self.last_screenshot, '画面-通用', name).is_success
+                   for name in ('手柄-功能导览标题', '手柄-导览套件')):
+                self.ctx.controller.gamepad_ui_press('back')
+                return self.round_retry('关闭功能导览', wait=.5)
+
         result = self.round_by_goto_screen(screen=self.last_screenshot, screen_name='大世界-普通', retry_wait=None)
         if result.is_success:
             return self.round_success(result.status)
@@ -160,6 +172,9 @@ class BackToNormalWorld(ZOperation):
             # 相关 issue #1357
             return self.round_retry(click_back.status, wait=0.5)
         else:
+            if self.ctx.controller.background_mode:
+                # 后台不能盲点；加载期间等画面或返回按钮出现，由本节点重试上限结束等待。
+                return self.round_retry('等待可识别画面', wait=0.5)
             return self.round_fail()
 
     @node_from(from_name='画面识别', status='脱离卡死')

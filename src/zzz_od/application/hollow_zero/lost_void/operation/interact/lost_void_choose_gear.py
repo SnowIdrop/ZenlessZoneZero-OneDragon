@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 import cv2
 from cv2.typing import MatLike
 
+from one_dragon.base.controller.background_input_error import BackgroundInputError
 from one_dragon.base.geometry.point import Point
 from one_dragon.base.geometry.rectangle import Rect
 from one_dragon.base.matcher.match_result import MatchResultList
@@ -41,12 +42,25 @@ class LostVoidChooseGear(ZOperation):
         # 本次画面最左侧槽位的武备名 携带成功后写入 completed_name_list
         # 最左侧槽位OCR解析失败时为None 本画面不记录(宁可下次重复识别 也不存错位的名字)
         self.first_slot_gear_name: str | None = None
+        self.selected_gear_name: str | None = None
+        self.selected_gear_priority: str | None = None
+        self.gamepad_equip_verified: bool = False
+        self.gamepad_confirm_sent: bool = False
+        self.gamepad_tutorial_text: str | None = None
 
-    @operation_node(name='选择武备', is_start_node=True)
+    @operation_node(name='选择武备', is_start_node=True, node_max_retry_times=20)
     def choose_gear(self) -> OperationRoundResult:
-        area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '文本-详情')
-        self.ctx.controller.mouse_move(area.center + Point(0, 100))
-        time.sleep(0.1)
+        if self.ctx.controller.background_mode:
+            # 首次教学遮罩也显示携带按钮，必须先处理右上角明确的 A 下一步提示。
+            tutorial_text = self.ctx.controller.background_ui.advance_lost_void_tutorial(
+                self.last_screenshot, self.gamepad_tutorial_text)
+            if tutorial_text is not None:
+                self.gamepad_tutorial_text = tutorial_text
+                return self.round_retry('等待武备教学页面变化', wait=.5)
+        else:
+            area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '文本-详情')
+            self.ctx.controller.mouse_move(area.center + Point(0, 100))
+            time.sleep(0.1)
 
         screen_name = self.check_and_update_current_screen(self.last_screenshot)
         if screen_name != '迷失之地-武备选择':
@@ -87,13 +101,16 @@ class LostVoidChooseGear(ZOperation):
             if unlocked_gears:
                 priority_new = self.ctx.lost_void.get_artifact_by_priority(unlocked_gears, 1)
                 target = priority_new[0] if len(priority_new) > 0 else unlocked_gears[0]
-                self.ctx.controller.click(target.rect.center)
+                self._select_gear(target.rect.center)
                 time.sleep(0.5)
 
                 # 将选择的武备类型鸣徽添加至第一优先级
                 text = target.artifact.category
-                self.ctx.lost_void.challenge_config.artifact_priority_in_battle.append(text)
-                log.info('【武备追新】添加开局选择的武备属性至第一优先级: [' + text + ']')
+                if self.ctx.controller.background_mode:
+                    self.selected_gear_priority = text
+                else:
+                    self.ctx.lost_void.challenge_config.artifact_priority_in_battle.append(text)
+                    log.info('【武备追新】添加开局选择的武备属性至第一优先级: [' + text + ']')
 
                 choose_new = True
                 log.info(f'【武备追新】当前可选未获取武备 {",".join([i.artifact.display_name for i in unlocked_gears])}')
@@ -103,10 +120,56 @@ class LostVoidChooseGear(ZOperation):
         if not choose_new:
             priority_list: list[LostVoidArtifactPos] = self.ctx.lost_void.get_artifact_by_priority(gear_list, 1)
             target = priority_list[0] if len(priority_list) > 0 else gear_list[0]
-            self.ctx.controller.click(target.rect.center)
+            self._select_gear(target.rect.center)
             time.sleep(0.5)
 
+        self.selected_gear_name = target.artifact.display_name
         return self.round_success(wait=0.5)
+
+    def _select_gear(self, target: Point) -> None:
+        """按圆环反馈移动武备焦点；只预览名称，不发送携带确认。"""
+        if not self.ctx.controller.background_mode:
+            self.ctx.controller.click(target)
+            return
+        region = self.ctx.screen_loader.get_area('迷失之地-武备选择', '武备列表').rect
+        image = self.ctx.controller.get_screenshot()
+        pairs = self.ctx.cv_service.run_pipeline('迷失之地-武备列表检测', image).get_absolute_rect_pairs()
+        slots = sorted((Rect(*rect) for _, rect in pairs), key=lambda rect: rect.center.x)
+        targets = [i for i, rect in enumerate(slots) if rect.x1 <= target.x < rect.x2]
+        if len(targets) != 1 or not region.y1 <= target.y < region.y2:
+            raise BackgroundInputError('未能确认目标武备槽位')
+        previous: int | None = None
+        moves = 0
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            crop = cv2_utils.crop_image_only(image, region)
+            mask = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_RGB2HSV), (25, 200, 220), (35, 255, 255))
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            rings = [cv2.boundingRect(contour) for contour in contours
+                     if cv2.boundingRect(contour)[2] >= 80 and cv2.boundingRect(contour)[3] >= 100
+                     and cv2.contourArea(contour) >= 700]
+            if len(rings) > 1:
+                raise BackgroundInputError('武备选中圆环不唯一')
+            if len(rings) == 1:
+                x, _, width, _ = rings[0]
+                center_x = region.x1 + x + width / 2
+                selected_slots = [i for i, rect in enumerate(slots) if rect.x1 <= center_x < rect.x2]
+                if len(selected_slots) != 1:
+                    raise BackgroundInputError('武备圆环没有对应的唯一槽位')
+                selected = selected_slots[0]
+                if selected == targets[0]:
+                    return
+                if selected != previous:
+                    if moves >= len(slots):
+                        raise BackgroundInputError('武备焦点导航超过槽位数量')
+                    self.ctx.controller.gamepad_ui_press('left' if targets[0] < selected else 'right')
+                    previous = selected
+                    moves += 1
+                    deadline = time.monotonic() + 2
+            # 只有新的圆环位置允许下一次方向输入，等待本身不代表移动成功。
+            time.sleep(.08)
+            image = self.ctx.controller.get_screenshot()
+        raise BackgroundInputError('武备选中圆环未响应方向键')
 
     def _find_gears_with_status(self) -> tuple[list[tuple[Any, bool]], Any]:
         """
@@ -180,7 +243,7 @@ class LostVoidChooseGear(ZOperation):
             return None
         gear_abs_pairs.sort(key=lambda item: item[1][0])
         x1, y1, x2, y2 = gear_abs_pairs[0][1]
-        self.ctx.controller.click(Point((x1 + x2) // 2, (y1 + y2) // 2))
+        self._select_gear(Point((x1 + x2) // 2, (y1 + y2) // 2))
         time.sleep(1)
         _, current_screen = self.ctx.controller.screenshot()
 
@@ -226,14 +289,36 @@ class LostVoidChooseGear(ZOperation):
         slice_list: list[MatLike] = []
         click_rect_list: list[Rect] = []
         has_level_list: list[bool] = []
+        locked_list: list[bool] = []
+        available_list: list[bool] = []
+        equipped_name = ''
+        if self.ctx.controller.background_mode:
+            equipped = self.ctx.screen_loader.get_area('迷失之地-武备选择', '手柄-已携带名称').rect
+            labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=equipped)
+            equipped_name = ''.join(char for label in sorted(labels, key=lambda item: item.x)
+                                   for char in label.data if char.isalnum())
 
         for i, (_, (x1, y1, x2, y2)) in enumerate(gear_abs_pairs):
             click_pos = Point((x1 + x2) // 2, (y1 + y2) // 2)
-            self.ctx.controller.click(click_pos)
+            self._select_gear(click_pos)
             time.sleep(1)
             _, current_screen = self.ctx.controller.screenshot()
             slice_list.append(cv2_utils.crop_image_only(current_screen, name_area.rect))
             click_rect_list.append(Rect(x1, y1, x2, y2))
+            # 灰色武备仍可预览名称；Y 解锁意味着尚不可携带，不能作为追新目标。
+            locked = []
+            available = True
+            if self.ctx.controller.background_mode:
+                locked = [self.round_by_find_area(current_screen, '迷失之地-武备选择', name).is_success
+                          for name in ('手柄-解锁', '手柄-解锁按键')]
+                if any(locked) and not all(locked):
+                    raise BackgroundInputError('武备解锁状态识别不完整')
+                carry = self.ctx.screen_loader.get_area('迷失之地-武备选择', '手柄-携带按键').rect
+                crop = cv2_utils.crop_image_only(current_screen, carry)
+                mask = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_RGB2HSV), (40, 150, 100), (95, 255, 255))
+                available = cv2.countNonZero(mask) > 30
+            locked_list.append(bool(locked) and all(locked))
+            available_list.append(available)
 
             if i < len(sorted_status_list):
                 has_level_list.append(sorted_status_list[i][1])
@@ -249,18 +334,26 @@ class LostVoidChooseGear(ZOperation):
             crop_first=False,
         )
         name_list = self._extract_names_from_stitched_ocr(ocr_map, len(slice_list), slice_list[0].shape[0])
+        if self.ctx.controller.background_mode and len(name_list) != len(click_rect_list):
+            raise BackgroundInputError('武备名称与槽位数量不一致')
         self._update_first_slot_gear_name(name_list)
 
         result_list: list[LostVoidArtifactPos] = []
+        result_has_level: list[bool] = []
         total_cnt = min(len(click_rect_list), len(name_list))
         for i in range(total_cnt):
             ocr_text = name_list[i]
-            if len(ocr_text) == 0:
+            if locked_list[i]:
                 continue
 
             art, is_primary = self._build_artifact_from_ocr_name(ocr_text)
             if art is None:
+                if self.ctx.controller.background_mode:
+                    raise BackgroundInputError('存在未能识别名称的可选武备，不能按不完整列表选择')
                 continue
+            if (self.ctx.controller.background_mode and not available_list[i]
+                    and ''.join(char for char in art.display_name if char.isalnum()) != equipped_name):
+                raise BackgroundInputError(f'未确认武备可以携带: {art.display_name}')
 
             result_list.append(
                 LostVoidArtifactPos(
@@ -270,10 +363,11 @@ class LostVoidChooseGear(ZOperation):
                     is_primary_name=is_primary,
                 )
             )
+            result_has_level.append(has_level_list[i])
 
         display_text = ','.join([i.artifact.display_name for i in result_list]) if len(result_list) > 0 else '无'
         log.info(f'当前识别武备 {display_text}')
-        return result_list, has_level_list
+        return result_list, result_has_level
 
     def _update_first_slot_gear_name(self, name_list: list[str]) -> None:
         """
@@ -337,8 +431,17 @@ class LostVoidChooseGear(ZOperation):
     @node_from(from_name='选择武备')
     @operation_node(name='点击携带')
     def click_equip(self) -> OperationRoundResult:
-        result = self.round_by_find_and_click_area(screen_name='迷失之地-武备选择', area_name='按钮-携带',
-                                                   success_wait=1, retry_wait=1)
+        if self.ctx.controller.background_mode:
+            if not self.round_by_find_area(self.last_screenshot, '迷失之地-武备选择', '按钮-携带').is_success:
+                return self.round_retry('未找到携带按钮', wait=1)
+            if self.round_by_find_area(self.last_screenshot, '迷失之地-武备选择', '手柄-解锁').is_success:
+                raise BackgroundInputError('当前武备尚未解锁，不能携带')
+            self.ctx.controller.gamepad_ui_press('confirm')
+            # 按 A 可能只打开确认弹窗，实际携带须由下一节点核对上方已携带名称。
+            return self.round_success('请求携带武备', wait=1)
+        else:
+            result = self.round_by_find_and_click_area(screen_name='迷失之地-武备选择', area_name='按钮-携带',
+                                                     success_wait=1, retry_wait=1)
         if result.is_success:
             self.ctx.lost_void.priority_updated = False
             log.info("武备选择成功，已设置优先级更新标志")
@@ -365,8 +468,47 @@ class LostVoidChooseGear(ZOperation):
 
     @node_from(from_name='选择武备', success=False)
     @node_from(from_name='点击携带')
-    @operation_node(name='点击返回')
+    @operation_node(name='点击返回', node_max_retry_times=20)
     def click_back(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if self.gamepad_equip_verified:
+                if self.ctx.lost_void.in_normal_world(self.last_screenshot):
+                    return self.round_success('已携带武备并返回')
+                return self.round_retry('等待返回迷失之地场景', wait=.5)
+            if self.selected_gear_name is None:
+                raise BackgroundInputError('缺少本次选中的武备名称')
+            expected = ''.join(char for char in self.selected_gear_name if char.isalnum())
+            prompt = self.ctx.screen_loader.get_area('迷失之地-武备选择', '手柄-携带提示').rect
+            labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=prompt)
+            text = ''.join(char for label in sorted(labels, key=lambda item: item.x)
+                           for char in label.data if char.isalnum())
+            if text.startswith('确认选择'):
+                if text != f'确认选择{expected}作为初始武备吗':
+                    raise BackgroundInputError('初始武备确认弹窗与选中目标不一致')
+                if self.gamepad_confirm_sent:
+                    return self.round_retry('等待初始武备确认生效', wait=.5)
+                confirm = self.ctx.screen_loader.get_area('迷失之地-武备选择', '确认').center
+                region = self.ctx.screen_loader.get_area('迷失之地-武备选择', '手柄-携带确认区').rect
+                self.ctx.controller.background_ui._navigate(self.last_screenshot, confirm, region)
+                self.gamepad_confirm_sent = True
+                return self.round_retry('确认初始武备', wait=.5)
+            equipped = self.ctx.screen_loader.get_area('迷失之地-武备选择', '手柄-已携带名称').rect
+            labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=equipped)
+            name = ''.join(char for label in sorted(labels, key=lambda item: item.x)
+                           for char in label.data if char.isalnum())
+            if name != expected:
+                return self.round_retry('等待已携带武备名称', wait=.5)
+            self.gamepad_equip_verified = True
+            self.ctx.lost_void.priority_updated = False
+            if self.selected_gear_priority is not None:
+                self.ctx.lost_void.challenge_config.artifact_priority_in_battle.append(self.selected_gear_priority)
+                log.info('【武备追新】已携带，添加武备属性至第一优先级: [%s]', self.selected_gear_priority)
+            if (self.completed_name_list is not None and self.first_slot_gear_name is not None
+                    and self.first_slot_gear_name not in self.completed_name_list):
+                self.completed_name_list.append(self.first_slot_gear_name)
+            self.ctx.controller.gamepad_ui_press('back')
+            return self.round_retry('退出已确认的武备选择', wait=.5)
+
         # 先尝试点击返回
         result = self.round_by_find_and_click_area(screen_name='迷失之地-武备选择', area_name='按钮-返回',
                                                  success_wait=1, retry_wait=1)

@@ -51,6 +51,13 @@ class UpdatePriorityOperation(ZOperation):
             return self.round_wait(status=result.status, wait=1)
 
         # 2: 切换到藏品页
+        if self.ctx.controller.background_mode:
+            result = self.round_by_find_area(self.last_screenshot, '迷失之地-藏品面板', '藏品')
+            if result.is_success:
+                region = self.ctx.screen_loader.get_area('迷失之地-藏品面板', '手柄-页签').rect
+                self.ctx.controller.background_ui._select_tab(
+                    self.last_screenshot, '藏品', region, ('地图', '藏品', '属性'))
+                return self.round_success('藏品页签已选中', wait=.5)
         result = self.round_by_find_and_click_area(screen_name='迷失之地-藏品面板', area_name='藏品')
         if result.is_success:
             return self.round_success(status=result.status, wait=1)

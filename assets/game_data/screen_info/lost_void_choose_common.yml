@@ -150,3 +150,69 @@ area_list:
   template_match_threshold: null
   color_range: null
   goto_list: []
+- area_name: 手柄-卡牌
+  area_type: none
+  pc_rect:
+  - 80
+  - 210
+  - 1840
+  - 780
+- area_name: 手柄-确认按键
+  area_type: none
+  pc_rect:
+  - 850
+  - 815
+  - 905
+  - 880
+- area_name: 手柄-藏品名称
+  area_type: none
+  pc_rect:
+  - 80
+  - 505
+  - 1911
+  - 552
+- area_name: 手柄-事件名称
+  area_type: none
+  pc_rect:
+  - 80
+  - 550
+  - 1911
+  - 610
+- area_name: 手柄-武备确认按键
+  area_type: none
+  pc_rect:
+  - 825
+  - 900
+  - 875
+  - 960
+- area_name: 手柄-武备卡牌
+  area_type: none
+  pc_rect:
+  - 80
+  - 340
+  - 1840
+  - 845
+- area_name: 手柄-新藏品标识
+  area_type: template
+  pc_rect:
+  - 80
+  - 235
+  - 1840
+  - 285
+  template_sub_dir: lost_void
+  template_id: new_resonium
+  template_match_threshold: 0.85
+- area_name: 手柄-武备NEW标识
+  area_type: none
+  pc_rect:
+  - 80
+  - 350
+  - 1840
+  - 400
+- area_name: 手柄-确认操作区
+  area_type: none
+  pc_rect:
+  - 700
+  - 790
+  - 1220
+  - 970

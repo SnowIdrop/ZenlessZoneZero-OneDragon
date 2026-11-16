@@ -406,3 +406,200 @@ area_list:
   template_id: ''
   template_match_threshold: 0.7
   goto_list: []
+- area_name: 手柄-鸣徽名称
+  area_type: none
+  pc_rect:
+  - 330
+  - 470
+  - 1660
+  - 535
+- area_name: 手柄-鸣徽卡片
+  area_type: none
+  pc_rect:
+  - 300
+  - 210
+  - 1700
+  - 750
+- area_name: 手柄-事件继续
+  area_type: text
+  pc_rect:
+  - 1808
+  - 542
+  - 1858
+  - 594
+  text: A
+  lcs_percent: 1.0
+- area_name: 手柄-研究鸣徽
+  area_type: text
+  pc_rect:
+  - 770
+  - 135
+  - 1160
+  - 200
+  text: 请领取怀斯塔学会的研究型鸣徽
+  lcs_percent: 0.85
+- area_name: 手柄-事件选项
+  area_type: none
+  pc_rect:
+  - 1250
+  - 300
+  - 1920
+  - 950
+- area_name: 手柄-消息选择
+  area_type: text
+  pc_rect:
+  - 800
+  - 690
+  - 1120
+  - 840
+  text: 选择
+  lcs_percent: 1
+- area_name: 手柄-消息确认
+  area_type: text
+  pc_rect:
+  - 800
+  - 590
+  - 1120
+  - 770
+  text: 确认
+  lcs_percent: 1
+- area_name: 手柄-侵蚀卡片
+  area_type: none
+  pc_rect:
+  - 250
+  - 300
+  - 1680
+  - 650
+- area_name: 手柄-战利品确定
+  area_type: text
+  pc_rect:
+  - 840
+  - 810
+  - 1085
+  - 885
+  text: 确定
+  lcs_percent: 1
+- area_name: 手柄-战利品
+  area_type: text
+  pc_rect:
+  - 870
+  - 140
+  - 1045
+  - 195
+  text: 获得战利品
+  lcs_percent: 1
+- area_name: 手柄-通关标题
+  area_type: text
+  pc_rect:
+  - 270
+  - 40
+  - 500
+  - 90
+  text: MISSION COMPLETE
+  lcs_percent: 0.8
+- area_name: 手柄-通关完成
+  area_type: text
+  pc_rect:
+  - 1800
+  - 1000
+  - 1900
+  - 1055
+  text: 完成
+  lcs_percent: 1
+- area_name: 手柄-探索总结
+  area_type: text
+  pc_rect:
+  - 180
+  - 25
+  - 330
+  - 85
+  text: 探索总结
+  lcs_percent: 1
+- area_name: 手柄-总结委托
+  area_type: text
+  pc_rect:
+  - 450
+  - 170
+  - 520
+  - 215
+  text: 委托
+  lcs_percent: 1
+- area_name: 手柄-鸣徽背面名称
+  area_type: none
+  pc_rect:
+  - 330
+  - 315
+  - 1660
+  - 365
+- area_name: 手柄-催化选择
+  area_type: text
+  pc_rect:
+  - 800
+  - 140
+  - 1120
+  - 200
+  text: 请选择要催化的鸣徽
+  lcs_percent: 1
+- area_name: 手柄-菜单暂离
+  area_type: text
+  pc_rect:
+  - 1405
+  - 1000
+  - 1485
+  - 1060
+  text: 暂离
+  lcs_percent: 1
+- area_name: 手柄-菜单放弃
+  area_type: text
+  pc_rect:
+  - 1530
+  - 1000
+  - 1610
+  - 1060
+  text: 放弃
+  lcs_percent: 1
+- area_name: 手柄-放弃提示
+  area_type: text
+  pc_rect:
+  - 700
+  - 490
+  - 1220
+  - 560
+  text: 是否确认放弃空洞探索，返回街区
+  lcs_percent: 0.9
+- area_name: 手柄-放弃结算
+  area_type: text
+  pc_rect:
+  - 270
+  - 42
+  - 465
+  - 90
+  text: MISSION FAILED
+  lcs_percent: 0.9
+- area_name: 手柄-插件获得
+  area_type: text
+  pc_rect:
+  - 810
+  - 390
+  - 1120
+  - 445
+  text: 获得邦布插件
+  lcs_percent: 1
+- area_name: 手柄-插件确定
+  area_type: text
+  pc_rect:
+  - 900
+  - 710
+  - 1040
+  - 760
+  text: 确定
+  lcs_percent: 1
+- area_name: 手柄-丢弃冗余
+  area_type: text
+  pc_rect:
+  - 810
+  - 135
+  - 1110
+  - 200
+  text: 丢弃冗余
+  lcs_percent: 1

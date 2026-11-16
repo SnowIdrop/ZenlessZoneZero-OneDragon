@@ -47,6 +47,10 @@ class EngagementRewardApp(ZApplication):
     @node_from(from_name='查看奖励结果', success=False, status=STATUS_CLAIM_RETRY)
     @operation_node(name='点击奖励')
     def click_reward(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            result = self.round_by_find_area(self.last_screenshot, '快捷手册', '活跃度奖励-4')
+            if result.is_success:
+                return self.round_success(self.STATUS_NO_REWARD)
         return self.round_by_find_and_click_area(self.last_screenshot, '快捷手册', '今日最大活跃度', success_wait=1, retry_wait=1)
 
     @node_from(from_name='点击奖励')
@@ -69,6 +73,7 @@ class EngagementRewardApp(ZApplication):
         return self.round_fail(self.STATUS_CLAIM_RETRY)
 
     @node_from(from_name='查看奖励结果')
+    @node_from(from_name='点击奖励', status=STATUS_NO_REWARD)
     @node_from(from_name='查看奖励结果', success=False, status=STATUS_CLAIM_RETRY_EXHAUSTED)
     @node_notify(when=NotifyTiming.CURRENT_DONE, detail=True)
     @operation_node(name='识别活跃度')

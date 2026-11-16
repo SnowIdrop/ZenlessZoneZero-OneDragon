@@ -93,6 +93,11 @@ class WorldPatrolApp(ZApplication):
     @node_from(from_name='开始前返回大世界')
     @operation_node(name='前往绳网')
     def goto_inter_knot(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode and all(
+            self.round_by_find_area(self.last_screenshot, '绳网', name).is_success
+            for name in ('手柄-日程', '手柄-任务聚焦')
+        ):
+            return self.round_success('已进入绳网日程')
         # 无任务追踪 → 跳过
         result = self.round_by_find_area(self.last_screenshot, '大世界', '任务追踪')
         if result.is_success:
@@ -104,6 +109,16 @@ class WorldPatrolApp(ZApplication):
     @node_from(from_name='前往绳网')
     @operation_node(name='停止追踪')
     def stop_tracking(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            if not all(self.round_by_find_area(self.last_screenshot, '绳网', name).is_success
+                       for name in ('手柄-日程', '手柄-任务聚焦')):
+                return self.round_retry('等待绳网日程', wait=.5)
+            if self.round_by_find_area(self.last_screenshot, '绳网', '手柄-停止追踪').is_success:
+                self.ctx.controller.gamepad_ui_press('confirm')
+                return self.round_retry('等待停止追踪', wait=.5)
+            if self.round_by_find_area(self.last_screenshot, '绳网', '手柄-追踪').is_success:
+                return self.round_success('已停止追踪')
+            return self.round_retry('未识别到手柄追踪按钮', wait=.5)
         # 找到"停止追踪" → 点击 → 成功 → 返回大世界
         click_result = self.round_by_find_and_click_area(self.last_screenshot, '绳网', '按钮-停止追踪')
         if click_result.is_success:

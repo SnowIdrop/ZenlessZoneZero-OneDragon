@@ -241,7 +241,9 @@ class RunSlot:
                 run_result = run_context.run_application(
                     app_id, run_context.current_instance_idx, group_id
                 )
-                if run_result.finish_reason == RunFinishReason.NOT_STARTED:
+                if run_result.error_message is not None:
+                    result = OperationResult(success=False, status=run_result.error_message)
+                elif run_result.finish_reason == RunFinishReason.NOT_STARTED:
                     result = OperationResult(
                         success=False,
                         status=f'应用运行失败: {run_result.finish_reason}',
@@ -275,7 +277,9 @@ class RunSlot:
                         failed_node = getattr(getattr(op, '_current_node', None), 'cn', None) if op is not None else None
                         with self._lock:
                             self.current_op = None
-                        run_context.stop_running()
+                        stop_result = run_context.stop_running()
+                        if stop_result.finish_reason == RunFinishReason.FAILED:
+                            result = OperationResult(success=False, status=stop_result.error_message or '结束运行失败')
         except Exception as e:  # noqa: BLE001 兜底:refresh_config/run_application 等抛异常也固化,避免卡 RUNNING
             result = OperationResult(success=False, status=f'执行异常: {e}')
         finally:

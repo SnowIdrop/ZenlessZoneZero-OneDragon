@@ -90,10 +90,11 @@ class GroupApplication(Application):
         self.ctx.run_context.current_group_id = self._group_id
         self.ctx.run_context.current_app_id = app.app_id
 
-        app_result = app.execute()
-
-        self.ctx.run_context.current_group_id = old_group_id
-        self.ctx.run_context.current_app_id = old_app_id
+        try:
+            app_result = app.execute()
+        finally:
+            self.ctx.run_context.current_group_id = old_group_id
+            self.ctx.run_context.current_app_id = old_app_id
 
         if not app_result.success:
             self._fail_app_idx_list.append(self._current_app_idx - 1)

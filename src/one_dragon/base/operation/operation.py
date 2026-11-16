@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 from cv2.typing import MatLike
 
+from one_dragon.base.controller.background_input_error import BackgroundInputError
 from one_dragon.base.debug.debug_trace_bus import (
     DebugTraceBus,
     DecisionTraceItem,
@@ -417,6 +418,9 @@ class Operation(OperationBase):
         """
         try:
             self._init_before_execute()
+        except BackgroundInputError as e:
+            self._finish_background_input_error(e)
+            raise
         except Exception:
             log.error('初始化失败', exc_info=True)
             return self.op_fail('初始化失败')
@@ -456,6 +460,10 @@ class Operation(OperationBase):
                     )
                 if self.ctx.run_context.is_context_pause:  # 有可能触发暂停的时候仍在执行指令 执行完成后 再次触发暂停回调 保证操作的暂停回调真正生效
                     self._on_pause()
+            except BackgroundInputError as e:
+                # 输入隔离失败不可重试或走业务失败边；各层仍执行结束清理。
+                self._finish_background_input_error(e)
+                raise
             except Exception as e:
                 round_result: OperationRoundResult = self.round_retry('异常')
                 if self.last_screenshot is not None:
@@ -689,6 +697,17 @@ class Operation(OperationBase):
         """
         return f'指令[ {self.op_name} ]'
 
+    def _finish_background_input_error(self, error: BackgroundInputError) -> None:
+        """先同步通知子类停止输入生产者，再注销事件；保留最初的输入失败原因。"""
+        try:
+            self.handle_pause()
+        except Exception:
+            log.error('%s 停止输入失败', self.display_name, exc_info=True)
+        try:
+            self.after_operation_done(self.op_fail(str(error)))
+        except Exception:
+            log.error('%s 异常收尾失败', self.display_name, exc_info=True)
+
     def after_operation_done(self, result: OperationResult):
         """处理操作完成后的处理。
 
@@ -696,6 +715,7 @@ class Operation(OperationBase):
             result: 最终操作结果。
         """
         self.ctx.unlisten_all_event(self)
+        self.ctx.run_context.event_bus.unlisten_all_event(self)
         if result.success:
             log.info('%s 执行成功 返回状态 %s', self.display_name, coalesce_gt(result.status, '成功', model='ui'))
         else:

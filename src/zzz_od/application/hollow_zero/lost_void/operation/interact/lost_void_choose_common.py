@@ -1,8 +1,10 @@
 import re
 import time
 
+import cv2
 from cv2.typing import MatLike
 
+from one_dragon.base.controller.background_input_error import BackgroundInputError
 from one_dragon.base.geometry.point import Point
 from one_dragon.base.matcher.match_result import MatchResult
 from one_dragon.base.operation.operation_node import operation_node
@@ -33,9 +35,16 @@ class LostVoidChooseCommon(ZOperation):
         self.chosen_idx_list: list[int] = []  # 已经选择过的下标
         self.fallback_click_count: int = 0  # 按钮计数缺失时，使用本轮点击次数作为兜底
         self.last_choose_target_num: int = 0  # 记录上一轮目标数量，用于重置点击计数
+        self.gamepad_tutorial_text: str | None = None
+        self.gamepad_confirm_sent: bool = False
+        self.gamepad_event_choice: bool = False
+        self.gamepad_selected_gear: str | None = None
+        self.gamepad_obtained_confirm_sent: bool = False
 
-    @operation_node(name='选择', is_start_node=True)
+    @operation_node(name='选择', is_start_node=True, node_max_retry_times=20)
     def choose_artifact(self) -> OperationRoundResult:
+        if self.ctx.controller.background_mode:
+            return self._choose_gamepad()
         area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '文本-详情')
         self.ctx.controller.mouse_move(area.center + Point(0, 100))
         time.sleep(0.1)
@@ -77,6 +86,117 @@ class LostVoidChooseCommon(ZOperation):
                 )
 
         return self.click_confirm()
+
+    def _choose_gamepad(self) -> OperationRoundResult:
+        """手柄单选的已选择标签是当前焦点，仍需按配置确定目标后才确认。"""
+        nav = self.ctx.controller.background_ui
+        area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '区域-标题')
+        labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=area.rect)
+        title = ''.join(char for label in sorted(labels, key=lambda item: item.x)
+                        for char in label.data if char.isalnum())
+        obtained_gear = title == '获得武备'
+        if self.gamepad_confirm_sent:
+            if self.ctx.lost_void.in_normal_world(self.last_screenshot):
+                self.ctx.lost_void.priority_updated = False
+                return self.round_success('已选择藏品并返回场景')
+            if self.round_by_find_area(self.last_screenshot, '迷失之地-挑战结果', '标题-挑战结果').is_success:
+                self.ctx.lost_void.priority_updated = False
+                return self.round_success('已选择藏品并进入挑战结果')
+            if self.gamepad_event_choice and nav.is_lost_void_selection(self.last_screenshot):
+                # 选择获得鸣徽后直接进入选牌，需观察新卡名，不能对旧事件重复确认。
+                if title in ('请选择1枚鸣徽', '请选择一枚鸣徽'):
+                    rewards = self.ctx.lost_void.get_artifact_pos(
+                        self.last_screenshot, name_area_name='手柄-藏品名称')
+                    if rewards and all(item.is_primary_name for item in rewards):
+                        return self.round_success('已进入事件奖励选择')
+            if not obtained_gear or self.gamepad_obtained_confirm_sent:
+                return self.round_retry('等待藏品选择生效', wait=.5)
+        tutorial_text = nav.advance_lost_void_tutorial(self.last_screenshot, self.gamepad_tutorial_text)
+        if tutorial_text is not None:
+            self.gamepad_tutorial_text = tutorial_text
+            return self.round_retry('等待鸣徽教学页面变化', wait=.5)
+        if not nav.is_lost_void_selection(self.last_screenshot):
+            return self.round_retry('等待完整的藏品选择画面', wait=.5)
+        gear_page = self.round_by_find_area(self.last_screenshot, '迷失之地-通用选择', '区域-武备标识').is_success
+        action_area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '手柄-确认操作区').rect
+        labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=action_area)
+        confirm = [label for label in labels if label.data == '确定']
+        prompts = [label for label in labels if label.data == 'A' and len(confirm) == 1
+                   and 0 < confirm[0].center.x - label.center.x < 180
+                   and abs(confirm[0].center.y - label.center.y) < 20]
+        if len(prompts) != 1:
+            return self.round_retry('等待确定按钮旁的手柄 A 提示', wait=.5)
+        crop = cv2_utils.crop_image_only(self.last_screenshot, prompts[0].rect)
+        mask = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_RGB2HSV), (40, 150, 160), (95, 255, 255))
+        if cv2.countNonZero(mask) <= 30:
+            return self.round_retry('等待藏品确认按键亮起', wait=.5)
+        if obtained_gear:
+            # 选择武备后还有获得提示；核对单张武备名称，再按一次该页的 A。
+            rewards = self.ctx.lost_void.get_artifact_pos(
+                self.last_screenshot, name_area_name='区域-武备名称')
+            if len(rewards) != 1 or not rewards[0].is_primary_name:
+                raise BackgroundInputError('未完整识别获得的武备名称')
+            if (self.gamepad_selected_gear is not None
+                    and rewards[0].artifact.display_name != self.gamepad_selected_gear):
+                raise BackgroundInputError('获得的武备与已选目标不一致')
+            self.ctx.controller.gamepad_ui_press('confirm')
+            self.gamepad_confirm_sent = self.gamepad_obtained_confirm_sent = True
+            return self.round_retry('已确认获得武备，等待返回场景', wait=.5)
+        self.check_choose_title(self.last_screenshot)
+        if self.to_choose_num != 1:
+            raise BackgroundInputError(f'迷失之地手柄选择尚未验证此数量: {self.to_choose_num}')
+        items = self.ctx.lost_void.get_artifact_pos(
+            self.last_screenshot, to_choose_gear_branch=self.to_choose_gear_branch,
+            screen_name='迷失之地-通用选择',
+            name_area_name='区域-武备名称' if gear_page else '手柄-藏品名称')
+        if not items:
+            # 回复/鸣徽事件的名称在卡面下方，不能把说明文本作为藏品名称。
+            items = self.ctx.lost_void.get_artifact_pos(
+                self.last_screenshot, name_area_name='手柄-事件名称')
+            names = {item.artifact.name for item in items}
+            if not ((len(items) == 2 and names == {'回复生命值', '获得鸣徽'})
+                    or (len(items) == 1 and names == {'有代价的齿轮硬币'})):
+                raise BackgroundInputError('未完整识别事件选项名称，不能确认选择')
+            self.gamepad_event_choice = True
+        elif any(not item.is_primary_name for item in items):
+            raise BackgroundInputError('未完整识别藏品名称，不能确认选择')
+        candidates = [item for item in items if item.can_choose or item.chosen]
+        if not candidates:
+            raise BackgroundInputError('没有可选择的藏品或事件选项')
+        if gear_page and self.ctx.lost_void.challenge_config.artifact_priority_new:
+            area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '手柄-武备NEW标识')
+            labels = self.ctx.ocr_service.get_ocr_result_list(self.last_screenshot, rect=area.rect)
+            markers = [label for label in labels
+                       if ''.join(char for char in label.data.lower() if char.isalpha()) == 'new']
+            for item in candidates:
+                item.is_new = any(0 < item.rect.center.x - marker.center.x < 220 for marker in markers)
+        elif not self.gamepad_event_choice and self.ctx.lost_void.challenge_config.artifact_priority_new:
+            # 卡牌底色会使整图 OCR 漏掉 NEW，按固定字形识别并对应右下方的卡名。
+            area = self.ctx.screen_loader.get_area('迷失之地-通用选择', '手柄-新藏品标识')
+            matches = self.ctx.tm.match_template(
+                cv2_utils.crop_image_only(self.last_screenshot, area.rect),
+                area.template_sub_dir, area.template_id, threshold=area.template_match_threshold,
+                only_best=False)
+            for item in candidates:
+                item.is_new = any(0 < item.rect.center.x - (match.center.x + area.rect.x1) < 220
+                                  for match in matches)
+        new_items = self.sort_candidates([item for item in candidates if item.is_new]) \
+            if self.ctx.lost_void.challenge_config.artifact_priority_new else []
+        priority = self.ctx.lost_void.get_artifact_by_priority(
+            candidates, len(candidates), consider_priority_1=True, consider_priority_2=True,
+            consider_not_in_priority=True, consider_priority_new=False)
+        target = (new_items + priority)[0]
+        region = self.ctx.screen_loader.get_area('迷失之地-通用选择',
+                                                '手柄-武备卡牌' if gear_page else '手柄-卡牌').rect
+        log.info('手柄藏品选择: %s', target.artifact.display_name)
+        nav._navigate(self.last_screenshot, target.rect.center, region, confirm=False,
+                      min_focus_height=200, ignore_text_punctuation=True, min_focus_value=100,
+                      allow_top_protrusion=gear_page)
+        self.ctx.controller.gamepad_ui_press('confirm')
+        if gear_page:
+            self.gamepad_selected_gear = target.artifact.display_name
+        self.gamepad_confirm_sent = True
+        return self.round_retry('确认已聚焦的藏品', wait=.5)
 
     def select_by_layers(self, target_num: int) -> bool:
         # 选择策略：

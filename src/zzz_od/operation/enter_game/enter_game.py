@@ -189,18 +189,18 @@ class EnterGame(ZOperation):
 
         self.round_by_click_area('打开游戏', '国服-账号输入区域')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.account)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.account)
+            self.ctx.controller.input_str(self.ctx.game_account_config.account)
         time.sleep(1.5)
 
         self.round_by_click_area('打开游戏', '国服-密码输入区域')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.password)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.password)
+            self.ctx.controller.input_str(self.ctx.game_account_config.password)
         time.sleep(1.5)
 
         self.round_by_click_area('打开游戏', '国服-同意按钮')
@@ -226,18 +226,18 @@ class EnterGame(ZOperation):
 
         self.round_by_click_area('打开游戏', '国服-账号输入区域-新')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.account)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.account)
+            self.ctx.controller.input_str(self.ctx.game_account_config.account)
         time.sleep(1.5)
 
         self.round_by_click_area('打开游戏', '国服-密码输入区域-新')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.password)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.password)
+            self.ctx.controller.input_str(self.ctx.game_account_config.password)
         time.sleep(1.5)
 
         self.round_by_click_area('打开游戏', '国服-同意按钮-新')
@@ -298,18 +298,18 @@ class EnterGame(ZOperation):
 
         self.round_by_click_area('打开游戏', '国际服-账号输入区域')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.account)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.account)
+            self.ctx.controller.input_str(self.ctx.game_account_config.account)
         time.sleep(1.5)
 
         self.round_by_click_area('打开游戏', '国际服-密码输入区域')
         time.sleep(0.5)
-        if self.use_clipboard:
+        if self.use_clipboard and not self.ctx.controller.background_mode:
             PcClipboard.copy_and_paste(self.ctx.game_account_config.password)
         else:
-            self.ctx.controller.keyboard_controller.keyboard.type(self.ctx.game_account_config.password)
+            self.ctx.controller.input_str(self.ctx.game_account_config.password)
         time.sleep(1.5)
 
         screen = self.screenshot()

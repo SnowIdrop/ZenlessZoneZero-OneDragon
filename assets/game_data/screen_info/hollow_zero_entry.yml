@@ -102,3 +102,103 @@ area_list:
   template_sub_dir: ''
   template_id: ''
   template_match_threshold: 0.7
+- area_name: 分支-深层调查
+  area_type: text
+  pc_rect:
+  - 1390
+  - 20
+  - 1550
+  - 85
+  text: 深层调查
+  lcs_percent: 0.8
+- area_name: 分支-迷失之地
+  area_type: text
+  pc_rect:
+  - 330
+  - 815
+  - 595
+  - 912
+  text: 迷失之地
+  lcs_percent: 0.8
+- area_name: 分支-枯萎之都
+  area_type: text
+  pc_rect:
+  - 1330
+  - 835
+  - 1620
+  - 940
+  text: 枯萎之都
+  lcs_percent: 0.8
+- area_name: 手柄-分支按键
+  area_type: none
+  pc_rect:
+  - 380
+  - 905
+  - 1530
+  - 970
+- area_name: 手柄-枯萎区域
+  area_type: none
+  pc_rect:
+  - 120
+  - 160
+  - 1810
+  - 940
+- area_name: 手柄-资质考核
+  area_type: text
+  pc_rect:
+  - 200
+  - 665
+  - 340
+  - 725
+  text: 资质考核
+  lcs_percent: 0.9
+- area_name: 手柄-施工废墟
+  area_type: text
+  pc_rect:
+  - 660
+  - 345
+  - 830
+  - 410
+  text: 施工废墟
+  lcs_percent: 0.9
+- area_name: 手柄-关卡列表
+  area_type: none
+  pc_rect:
+  - 1100
+  - 160
+  - 1860
+  - 930
+- area_name: 手柄-关键敌情
+  area_type: text
+  pc_rect:
+  - 1380
+  - 995
+  - 1550
+  - 1055
+  text: 关键敌情
+  lcs_percent: 0.9
+- area_name: 手柄-探索收集
+  area_type: text
+  pc_rect:
+  - 1400
+  - 995
+  - 1595
+  - 1055
+  text: 探索收集
+  lcs_percent: 1
+- area_name: 手柄-作战机略
+  area_type: text
+  pc_rect:
+  - 1670
+  - 995
+  - 1850
+  - 1055
+  text: 作战机略
+  lcs_percent: 1
+- area_name: 手柄-继续探索提示
+  area_type: none
+  pc_rect:
+  - 640
+  - 485
+  - 1290
+  - 560

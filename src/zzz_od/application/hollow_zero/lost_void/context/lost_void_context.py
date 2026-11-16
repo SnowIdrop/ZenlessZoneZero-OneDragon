@@ -344,6 +344,7 @@ class LostVoidContext:
         screen: MatLike,
         to_choose_gear_branch: bool = False,
         screen_name: str = '迷失之地-通用选择',
+        name_area_name: str = '区域-藏品名称',
     ) -> list[LostVoidArtifactPos]:
         """
         识别画面中出现的藏品
@@ -362,7 +363,7 @@ class LostVoidContext:
             gt('NEW!', 'game')
         ]
 
-        artifact_pos_list = self._build_artifact_candidates_from_name_ocr(screen, screen_name)
+        artifact_pos_list = self._build_artifact_candidates_from_name_ocr(screen, screen_name, name_area_name)
 
         # 识别武备分支
         if to_choose_gear_branch:
@@ -403,7 +404,7 @@ class LostVoidContext:
 
         # 标题标识（已选择/NEW/齿轮硬币不足）仍按全图OCR做空间关联
         ocr_result_map = self.ctx.ocr.run_ocr(screen)
-        for ocr_result, mrl in ocr_result_map.items():
+        for ocr_result, mr in ((text, match) for text, matches in ocr_result_map.items() for match in matches):
             title_idx: int = str_utils.find_best_match_by_difflib(ocr_result, title_word_list)
             if title_idx is None or title_idx < 0:
                 continue
@@ -411,14 +412,14 @@ class LostVoidContext:
             closest_artifact_pos: LostVoidArtifactPos | None = None
             for artifact_pos in artifact_pos_list:
                 # 标题需要在藏品的上方
-                if not mrl.max.rect.y2 < artifact_pos.rect.y1:
+                if not mr.rect.y2 < artifact_pos.rect.y1:
                     continue
 
                 if closest_artifact_pos is None:
                     closest_artifact_pos = artifact_pos
                     continue
-                old_dis = abs(mrl.max.center.x - closest_artifact_pos.rect.center.x)
-                new_dis = abs(mrl.max.center.x - artifact_pos.rect.center.x)
+                old_dis = abs(mr.center.x - closest_artifact_pos.rect.center.x)
+                new_dis = abs(mr.center.x - artifact_pos.rect.center.x)
                 if new_dis < old_dis:
                     closest_artifact_pos = artifact_pos
 
@@ -449,6 +450,7 @@ class LostVoidContext:
         self,
         screen: MatLike,
         screen_name: str,
+        name_area_name: str = '区域-藏品名称',
     ) -> list[LostVoidArtifactPos]:
         """
         从“区域-藏品名称”OCR结果构建候选：
@@ -457,9 +459,9 @@ class LostVoidContext:
         并按X坐标聚合为每卡一个候选，保留坐标用于点击。
         """
         try:
-            area = self.ctx.screen_loader.get_area(screen_name, '区域-藏品名称')
+            area = self.ctx.screen_loader.get_area(screen_name, name_area_name)
         except Exception as e:
-            log.warning(f'获取区域失败 screen={screen_name} area=区域-藏品名称 err={e}')
+            log.warning(f'获取区域失败 screen={screen_name} area={name_area_name} err={e}')
             return []
 
         ocr_result_map = self.ctx.ocr_service.get_ocr_result_map(
