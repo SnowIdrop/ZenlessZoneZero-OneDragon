@@ -1,9 +1,8 @@
 name: Sync upstream
 
 on:
-  schedule:
-    - cron: "23 19 * * *"
-  workflow_dispatch:
+  push:
+    branches: [sync-workflow-test/run]
 
 concurrency:
   group: sync-upstream
@@ -25,28 +24,28 @@ jobs:
         shell: bash
         run: |
           # 使用固定的上游提交。保留已打开的同步 PR 及其冲突修复提交。
-          upstream_sha="$(gh api "repos/$UPSTREAM/branches/main" --jq .commit.sha)"
-          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$upstream_sha" --jq .ahead_by)"
+          upstream_sha="$(gh api "repos/$UPSTREAM/branches/test" --jq .commit.sha)"
+          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/sync-workflow-test/base...$upstream_sha" --jq .ahead_by)"
           if [[ "$ahead" == 0 ]]; then
             echo "The fork already contains upstream/main."
             exit 0
           fi
 
           prs="$(gh api --paginate -X GET "repos/$GITHUB_REPOSITORY/pulls" \
-            -f state=open -f base=main -f per_page=100 \
-            --jq '.[] | select(.head.repo.full_name == .base.repo.full_name and (.head.ref | startswith("sync/upstream-"))) | .html_url')"
+            -f state=open -f base=sync-workflow-test/base -f per_page=100 \
+            --jq '.[] | select(.head.repo.full_name == .base.repo.full_name and (.head.ref | startswith("sync-test/upstream-"))) | .html_url')"
           if [[ -n "$prs" ]]; then
             echo "An upstream sync pull request is already open: $prs"
             exit 0
           fi
 
-          branch="sync/upstream-$upstream_sha"
+          branch="sync-test/upstream-$upstream_sha"
           if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --silent; then
             gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
               -f ref="refs/heads/$branch" -f sha="$upstream_sha" --silent
           fi
 
           gh api -X POST "repos/$GITHUB_REPOSITORY/pulls" \
-            -f base=main -f head="$branch" -f title="Sync upstream ${upstream_sha:0:12}" \
+            -f base=sync-workflow-test/base -f head="$branch" -f title="Sync upstream ${upstream_sha:0:12}" \
             -f body="Upstream snapshot: $UPSTREAM@$upstream_sha. Preserve the background controller patches and fork-only code source. Resolve conflicts on the sync branch and run the background regression checks before merging. Use a merge commit so the upstream history is retained." \
             --jq .html_url
