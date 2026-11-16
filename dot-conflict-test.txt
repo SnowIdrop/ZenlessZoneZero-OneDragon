@@ -1,1 +1,1 @@
-Maximum retries: 3
+Maximum retries: 4
