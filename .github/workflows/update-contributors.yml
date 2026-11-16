@@ -11,6 +11,7 @@ jobs:
     uses: ./.github/workflows/common-set-timestamp.yml
 
   update-contributors:
+    if: github.repository == 'OneDragon-Anything/ZenlessZoneZero-OneDragon'
     needs: set-timestamp
     runs-on: ubuntu-latest
     permissions:
